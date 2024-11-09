@@ -18,29 +18,34 @@ def run_parameter_optimization_strategy():
 
     # Initial parameters to start with
     initial_params = {
-        'leverage': 10,
+        #'leverage': 10,
+        'macd_fast_period': 12,
+        'macd_slow_period': 26,
+        'macd_signal_period': 9,
+        #'mfi_period': 14,
+        'obv_ma_period': 10,
         'bb_period': 20,
-        'bb_std': 2.0,
-        'adx_period': 20,
-        'adx_threshold': 25,
-        'rsi_period': 20,
-        'rsi_overbought': 70,
+        'bb_std': 1.7,
+        'adx_period': 25,
+        'adx_threshold': 29,
+        'rsi_period': 21,
+        'rsi_overbought': 75,
         'rsi_oversold': 30,
-        'take_profit_pct': 0.05,
-        'atr_period': 14,
-        'atr_multiplier': 2.0,
-        'keltner_period': 20,
-        'keltner_atr_factor': 2.0,
+        'take_profit_pct': 0.03,
+        'atr_period': 22,
+        'atr_multiplier': 1.8,
+        #'keltner_period': 21,
+        #'keltner_atr_factor': 1.6,
         #'hma_period': 20,
-        #'vwap_std': 2.0
+        #'vwap_std': 2.0,
     }
 
-    #strategy.optimize_step_by_step(data, initial_params)
-    #print("\nOptimization done")
+    strategy.optimize_step_by_step(data, initial_params)
+    print("\nOptimization done")
 
-    strategy.run_strategy(data)
-    strategy.calculate_metrics(data)
-    strategy.plot_results(data)
+    #strategy.run_strategy(data)
+    #strategy.calculate_metrics(data)
+    #strategy.plot_results(data)
 
 def run_timeframe_optimization_strategy():
     # Initialize API and fetch data

@@ -10,8 +10,7 @@ class Strategy_base:
     def __init__(self, starting_balance: float, leverage: int):
         self.starting_balance = starting_balance
         self.leverage = leverage
-        self.position_size = starting_balance / 3 * leverage
-        self.margin = self.position_size / leverage
+        self.position_size = starting_balance / 2 * leverage
 
         self.reset_state()
 
@@ -25,6 +24,7 @@ class Strategy_base:
         self.peak_balance = self.starting_balance
         self.max_drawdown = 0
         self.balance_history = [self.starting_balance]
+        self.position_size = self.starting_balance / 2 * self.leverage
 
     def calculate_bollinger_bands(self, series, period=20, std_dev=2.0):
         rolling_mean = series.rolling(window=period).mean()
@@ -127,6 +127,39 @@ class Strategy_base:
         lower_band = vwap - (std_dev * self.vwap_std)
         return vwap, upper_band, lower_band
 
+    def calculate_macd(self, series: pd.Series, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9) -> tuple:
+        """Calculate MACD (Moving Average Convergence Divergence)"""
+        exp1 = series.ewm(span=fast_period, adjust=False).mean()
+        exp2 = series.ewm(span=slow_period, adjust=False).mean()
+        macd_line = exp1 - exp2
+        signal_line = macd_line.ewm(span=signal_period, adjust=False).mean()
+        histogram = macd_line - signal_line
+        return macd_line, signal_line, histogram
+
+    def calculate_obv(self, close: pd.Series, volume: pd.Series) -> pd.Series:
+        """Calculate On-Balance Volume (OBV)"""
+        obv = pd.Series(index=close.index, dtype='float64')
+        obv.iloc[0] = 0
+        for i in range(1, len(close)):
+            if close.iloc[i] > close.iloc[i - 1]:
+                obv.iloc[i] = obv.iloc[i - 1] + volume.iloc[i]
+            elif close.iloc[i] < close.iloc[i - 1]:
+                obv.iloc[i] = obv.iloc[i - 1] - volume.iloc[i]
+            else:
+                obv.iloc[i] = obv.iloc[i - 1]
+        return obv
+
+    def calculate_mfi(self, high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series, period: int = 14) -> pd.Series:
+        """Calculate Money Flow Index (MFI)"""
+        typical_price = (high + low + close) / 3
+        money_flow = typical_price * volume
+        positive_flow = money_flow.where(typical_price > typical_price.shift(1), 0)
+        negative_flow = money_flow.where(typical_price < typical_price.shift(1), 0)
+        positive_mf = positive_flow.rolling(window=period).sum()
+        negative_mf = negative_flow.rolling(window=period).sum()
+        mfi = 100 - (100 / (1 + (positive_mf / negative_mf)))
+        return mfi
+
     def calculate_pnl(self, exit_price: float) -> float:
         """Calculate PnL for a closed trade"""
         price_change = (exit_price - self.entry_price) / self.entry_price
@@ -202,7 +235,7 @@ class Strategy_base:
         
         plt.tight_layout()
         try:
-            plt.savefig('strategy_results.png')
+            plt.savefig('data/strategy_results.png')
         except Exception as e:
             print(f"Error saving figure: {e}")
         finally:
@@ -309,10 +342,10 @@ class Strategy_base:
             for param_name, current_value in best_params.items():
                 # Determine the range of test values based on the parameter type
                 if isinstance(current_value, int):
-                    test_values = [current_value + i for i in range(-12, 13) if current_value + i > 0]
+                    test_values = [current_value + i for i in range(-20, 21) if current_value + i > 0]
                 else:
                     test_values = [
-                        round(current_value * (0.86 + i * 0.01), 5) for i in range(29)
+                        round(current_value * (0.70 + i * 0.01), 5) for i in range(61)
                     ]
 
                 print(f"\nTesting {param_name}:")

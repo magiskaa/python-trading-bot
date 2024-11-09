@@ -21,7 +21,12 @@ class Optimize_parameters(Strategy_base):
                  keltner_period: int = DEFAULT_PARAMS['keltner_period'],
                  keltner_atr_factor: float = DEFAULT_PARAMS['keltner_atr_factor'],
                  hma_period: int = DEFAULT_PARAMS['hma_period'],
-                 vwap_std: float = DEFAULT_PARAMS['vwap_std']):
+                 vwap_std: float = DEFAULT_PARAMS['vwap_std'],
+                 macd_fast_period: int = DEFAULT_PARAMS['macd_fast_period'],
+                 macd_slow_period: int = DEFAULT_PARAMS['macd_slow_period'],
+                 macd_signal_period: int = DEFAULT_PARAMS['macd_signal_period'],
+                 mfi_period: int = DEFAULT_PARAMS['mfi_period'],
+                 obv_ma_period: int = DEFAULT_PARAMS['obv_ma_period'],):
         
         # Initialize the base class with common parameters
         super().__init__(starting_balance, leverage)
@@ -44,6 +49,11 @@ class Optimize_parameters(Strategy_base):
         self.keltner_atr_factor = keltner_atr_factor
         self.hma_period = hma_period
         self.vwap_std = vwap_std
+        self.macd_fast_period = macd_fast_period
+        self.macd_slow_period = macd_slow_period
+        self.macd_signal_period = macd_signal_period
+        self.mfi_period = mfi_period
+        self.obv_ma_period = obv_ma_period
 
         # Initialize additional attributes
         self.current_position = 0
@@ -71,6 +81,33 @@ class Optimize_parameters(Strategy_base):
         )
         df['vwap'], df['vwap_upper'], df['vwap_lower'] = self.calculate_vwap(df)
 
+        # Calculate MACD
+        df['macd_line'], df['macd_signal'], df['macd_hist'] = self.calculate_macd(
+            df['close'],
+            fast_period=self.macd_fast_period,
+            slow_period=self.macd_slow_period,
+            signal_period=self.macd_signal_period
+        )
+
+        # Calculate OBV
+        df['obv'] = self.calculate_obv(df['close'], df['volume'])
+
+        # Calculate OBV trend (difference from previous value)
+        df['obv_trend'] = df['obv'].diff()
+
+        # Calculate OBV Moving Average
+        self.obv_ma_period = 10  # You can adjust this period
+        df['obv_ma'] = df['obv'].rolling(window=self.obv_ma_period).mean()
+
+        # Calculate MFI
+        df['mfi'] = self.calculate_mfi(
+            df['high'],
+            df['low'],
+            df['close'],
+            df['volume'],
+            period=self.mfi_period
+        )
+
         return df
 
     def check_entry_conditions(self, row: pd.Series) -> int:
@@ -85,15 +122,23 @@ class Optimize_parameters(Strategy_base):
         hma_trend = 1 if row['close'] > row['hma'] else -1
         vwap_condition_long = row['close'] < row['vwap_lower']
         vwap_condition_short = row['close'] > row['vwap_upper']
+        macd_condition_long = row['macd_line'] > row['macd_signal']
+        macd_condition_short = row['macd_line'] < row['macd_signal']
+        mfi_condition_long = row['mfi'] < 20
+        mfi_condition_short = row['mfi'] > 80
+        obv_condition_long = row['obv_trend'] > 0
+        obv_condition_short = row['obv_trend'] < 0
+        obv_ma_condition_long = row['obv'] > row['obv_ma']
+        obv_ma_condition_short = row['obv'] < row['obv_ma']
         
         # Long entry
         if (bb_condition_long and adx_condition and rsi_condition_long and
-            keltner_condition_long):
+            macd_condition_long and obv_ma_condition_long):
             return 1
             
         # Short entry
         elif (bb_condition_short and adx_condition and rsi_condition_short and
-              keltner_condition_short):
+              macd_condition_short and obv_ma_condition_short):
             return -1
 
         return 0
@@ -122,8 +167,11 @@ class Optimize_parameters(Strategy_base):
             self.bb_period, 
             self.adx_period, 
             self.rsi_period,
-            self.keltner_period,
-            self.hma_period,
+            #self.keltner_period,
+            #self.hma_period,
+            self.macd_slow_period,
+            #self.mfi_period,
+            #self.obv_ma_period
         )
         
         for i in range(start_idx, len(df)):
@@ -169,10 +217,15 @@ class Optimize_parameters(Strategy_base):
                     # Reset position
                     self.current_position = 0
                     positions[i] = 0
+                else:
+                    positions[i] = self.current_position
+            else:
+                positions[i] = 0
                     
             # Update balance history
             self.balance_history[i] = self.current_balance
             
+
             # Check entry conditions if not in position
             if self.current_position == 0:
                 entry_signal = self.check_entry_conditions(current_row)

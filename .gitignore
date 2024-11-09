@@ -26,6 +26,7 @@ data/
 
 # Secrets and configuration files
 config.py
+treidingg.txt
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/

@@ -40,25 +40,6 @@ class Optimize_time_frame(Strategy_base):
         
         self.last_df = None
         self.reset_state()
-    
-    def check_exit_conditions(self, current_price: float) -> bool:
-        """Check if we should exit the current position"""
-        if self.current_position == 0:
-            return False
-            
-        price_change = (current_price - self.entry_price) / self.entry_price
-        
-        # Check stop loss
-        if (self.current_position == 1 and price_change < -self.stop_loss_pct) or \
-           (self.current_position == -1 and price_change > self.stop_loss_pct):
-            return True
-            
-        # Check take profit
-        if (self.current_position == 1 and price_change > self.take_profit_pct) or \
-           (self.current_position == -1 and price_change < -self.take_profit_pct):
-            return True
-            
-        return False
 
     def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
