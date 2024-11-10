@@ -96,7 +96,6 @@ class Optimize_parameters(Strategy_base):
         df['obv_trend'] = df['obv'].diff()
 
         # Calculate OBV Moving Average
-        self.obv_ma_period = 10  # You can adjust this period
         df['obv_ma'] = df['obv'].rolling(window=self.obv_ma_period).mean()
 
         # Calculate MFI
@@ -133,12 +132,12 @@ class Optimize_parameters(Strategy_base):
         
         # Long entry
         if (bb_condition_long and adx_condition and rsi_condition_long and
-            macd_condition_long and obv_ma_condition_long):
+            obv_ma_condition_long):
             return 1
             
         # Short entry
         elif (bb_condition_short and adx_condition and rsi_condition_short and
-              macd_condition_short and obv_ma_condition_short):
+              obv_ma_condition_short):
             return -1
 
         return 0
@@ -156,6 +155,7 @@ class Optimize_parameters(Strategy_base):
         # Store dataframe and calculate indicators
         self.last_df = df
         df = self.calculate_indicators(df)
+        laskuri = 0
         
         # Initialize arrays
         positions = np.zeros(len(df))
@@ -169,9 +169,9 @@ class Optimize_parameters(Strategy_base):
             self.rsi_period,
             #self.keltner_period,
             #self.hma_period,
-            self.macd_slow_period,
+            #self.macd_slow_period,
             #self.mfi_period,
-            #self.obv_ma_period
+            self.obv_ma_period
         )
         
         for i in range(start_idx, len(df)):
@@ -213,7 +213,15 @@ class Optimize_parameters(Strategy_base):
                         'balance_after': self.current_balance,
                         'exit_type': 'stop_loss' if stop_hit else 'take_profit'
                     })
-                    
+                    if len(self.trades) < 4:
+                        print("enp:", self.trades[laskuri]['entry_price'])
+                        print("exp:", self.trades[laskuri]['exit_price'])
+                        print("pnl:", self.trades[laskuri]['pnl'])
+                        print("pos:", self.trades[laskuri]['position'])
+                        print("bal:", self.trades[laskuri]['balance_after'])
+                        print("ext:", self.trades[laskuri]['exit_type'])
+                    laskuri += 1
+
                     # Reset position
                     self.current_position = 0
                     positions[i] = 0
@@ -224,7 +232,13 @@ class Optimize_parameters(Strategy_base):
                     
             # Update balance history
             self.balance_history[i] = self.current_balance
-            
+
+            arvot = [800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400, 4800, 5200, 5600, 6000]
+            lisättävä = 1000
+            for arvo in arvot:
+                if self.current_balance > arvo:
+                    self.position_size = self.starting_balance / 2 * self.leverage + lisättävä
+                    lisättävä += 1000
 
             # Check entry conditions if not in position
             if self.current_position == 0:
@@ -240,8 +254,13 @@ class Optimize_parameters(Strategy_base):
                         current_row, 
                         entry_signal
                     )
+                    if len(self.trades) < 3:
+                        print("Current price", current_price)
+                        print("Initial stop loss:", stop_losses[i])
                 else:
                     positions[i] = 0
+            else:
+                positions[i] = self.current_position
                     
             # Update trailing stop if in position
             if self.current_position != 0:
@@ -249,6 +268,9 @@ class Optimize_parameters(Strategy_base):
                     current_row, 
                     self.current_position
                 )
+                if len(self.trades) < 3:
+                    print("Current price", current_price)
+                    print("New stop loss:", new_stop)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

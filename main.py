@@ -19,33 +19,40 @@ def run_parameter_optimization_strategy():
     # Initial parameters to start with
     initial_params = {
         #'leverage': 10,
-        'macd_fast_period': 12,
-        'macd_slow_period': 26,
-        'macd_signal_period': 9,
+        #'macd_fast_period': 12,
+        #'macd_slow_period': 26,
+        #'macd_signal_period': 9,
         #'mfi_period': 14,
-        'obv_ma_period': 10,
-        'bb_period': 20,
-        'bb_std': 1.7,
-        'adx_period': 25,
-        'adx_threshold': 29,
-        'rsi_period': 21,
-        'rsi_overbought': 75,
-        'rsi_oversold': 30,
-        'take_profit_pct': 0.03,
-        'atr_period': 22,
-        'atr_multiplier': 1.8,
+        
+        #'bb_period': 12,
+        #'bb_std': 1.48225,
+        #'adx_period': 43,
+        #'adx_threshold': 22,
+        #'rsi_period': 22,
+        #'rsi_overbought': 64,
+        #'rsi_oversold': 30,
+        #'stop_loss_pct': 0.025,
+        'take_profit_pct': 0.14107,
+        #'atr_period': 3,
+        'atr_multiplier': 1.71064,
+        #'obv_ma_period': 10,
         #'keltner_period': 21,
         #'keltner_atr_factor': 1.6,
         #'hma_period': 20,
         #'vwap_std': 2.0,
     }
 
-    strategy.optimize_step_by_step(data, initial_params)
+    #strategy.optimize_step_by_step(data, initial_params)
     print("\nOptimization done")
 
-    #strategy.run_strategy(data)
-    #strategy.calculate_metrics(data)
-    #strategy.plot_results(data)
+    strategy.run_strategy(data)
+    strategy.calculate_metrics(data)
+    strategy.plot_results(data)
+
+
+    #TODO: ehkä sillain että indicaattorit käyttää 1h dataa ja otetaan 15min 'close' dataa, 
+    # koska jos hinta tippuu/laskee paljon niin tulee muuten rekt
+
 
 def run_timeframe_optimization_strategy():
     # Initialize API and fetch data

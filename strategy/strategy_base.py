@@ -10,7 +10,7 @@ class Strategy_base:
     def __init__(self, starting_balance: float, leverage: int):
         self.starting_balance = starting_balance
         self.leverage = leverage
-        self.position_size = starting_balance / 2 * leverage
+        self.position_size = starting_balance / 3 * leverage
 
         self.reset_state()
 
@@ -423,9 +423,9 @@ class Strategy_base:
             if len(returns) > 1 and returns.std() != 0 else 0
         )
 
-        weight_pnl = 0.25
-        weight_mdd = 0.7
-        weight_sharpe = 0.05
+        weight_pnl = 0.85
+        weight_mdd = 0.14
+        weight_sharpe = 0.01
 
         normalized_pnl = min(1.0, pnl / 1000) if pnl > 0 else max(-1.0, pnl / 1000)
         normalized_mdd = 1 - mdd
