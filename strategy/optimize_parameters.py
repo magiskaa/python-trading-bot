@@ -167,10 +167,10 @@ class Optimize_parameters(Strategy_base):
             self.bb_period, 
             self.adx_period, 
             self.rsi_period,
-            #self.keltner_period,
-            #self.hma_period,
-            #self.macd_slow_period,
-            #self.mfi_period,
+            self.keltner_period,
+            self.hma_period,
+            self.macd_slow_period,
+            self.mfi_period,
             self.obv_ma_period
         )
         
@@ -213,13 +213,14 @@ class Optimize_parameters(Strategy_base):
                         'balance_after': self.current_balance,
                         'exit_type': 'stop_loss' if stop_hit else 'take_profit'
                     })
-                    if len(self.trades) < 4:
-                        print("enp:", self.trades[laskuri]['entry_price'])
-                        print("exp:", self.trades[laskuri]['exit_price'])
-                        print("pnl:", self.trades[laskuri]['pnl'])
-                        print("pos:", self.trades[laskuri]['position'])
-                        print("bal:", self.trades[laskuri]['balance_after'])
-                        print("ext:", self.trades[laskuri]['exit_type'])
+                    
+                    print("enp:", self.trades[laskuri]['entry_price'])
+                    print("exp:", self.trades[laskuri]['exit_price'])
+                    print("pnl:", self.trades[laskuri]['pnl'])
+                    print("pos:", self.trades[laskuri]['position'])
+                    print("bal:", self.trades[laskuri]['balance_after'])
+                    print("ext:", self.trades[laskuri]['exit_type'])
+                    print("pos_s:", self.position_size)
                     laskuri += 1
 
                     # Reset position
@@ -233,12 +234,39 @@ class Optimize_parameters(Strategy_base):
             # Update balance history
             self.balance_history[i] = self.current_balance
 
-            arvot = [800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400, 4800, 5200, 5600, 6000]
+
+            #TODO: Better way to calculate position size
+
+            arvot = [600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200, 
+                     3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 5200, 5400, 5600, 5800, 6000,
+                     6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600, 7800, 8000, 8200, 8400, 8600, 8800,
+                     9000, 9200, 9400, 9600, 9800, 10000, 10200, 10400, 10600, 10800, 11000, 11200, 11400]
             lisättävä = 1000
             for arvo in arvot:
                 if self.current_balance > arvo:
-                    self.position_size = self.starting_balance / 2 * self.leverage + lisättävä
-                    lisättävä += 1000
+                    if arvo > 1250:
+                        lisättävä += 1500
+                    elif arvo > 2500:
+                        lisättävä += 2000
+                    elif arvo > 3750:
+                        lisättävä += 2500
+                    elif arvo > 5000:
+                        lisättävä += 3000
+                    elif arvo > 6250:
+                        lisättävä += 3500
+                    elif arvo > 7500:
+                        lisättävä += 4000
+                    elif arvo > 8750:  
+                        lisättävä += 5000
+                    elif arvo > 10000:
+                        lisättävä += 5000
+                    elif arvo > 11250:
+                        lisättävä += 6000
+                    elif arvo > 12500:
+                        lisättävä += 7000
+                    else:
+                        lisättävä += 1000
+                    self.position_size = self.starting_balance / 3 * self.leverage + lisättävä
 
             # Check entry conditions if not in position
             if self.current_position == 0:
@@ -254,9 +282,9 @@ class Optimize_parameters(Strategy_base):
                         current_row, 
                         entry_signal
                     )
-                    if len(self.trades) < 3:
-                        print("Current price", current_price)
-                        print("Initial stop loss:", stop_losses[i])
+                    #if len(self.trades) < 3:
+                    #    print("Current price", current_price)
+                    #    print("Initial stop loss:", stop_losses[i])
                 else:
                     positions[i] = 0
             else:
@@ -268,9 +296,9 @@ class Optimize_parameters(Strategy_base):
                     current_row, 
                     self.current_position
                 )
-                if len(self.trades) < 3:
-                    print("Current price", current_price)
-                    print("New stop loss:", new_stop)
+                #if len(self.trades) < 3:
+                #    print("Current price", current_price)
+                #    print("New stop loss:", new_stop)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

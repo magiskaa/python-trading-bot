@@ -3,6 +3,8 @@ from strategy.optimize_parameters import Optimize_parameters
 from strategy.optimize_time_frame import Optimize_time_frame
 from strategy.strategy_utils import fetch_data, fetch_multi_timeframe_data, find_best_timeframe
 from config.config import SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS
+import warnings
+warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 def run_parameter_optimization_strategy():
     # Initialize API and fetch data
@@ -18,28 +20,27 @@ def run_parameter_optimization_strategy():
 
     # Initial parameters to start with
     initial_params = {
-        #'leverage': 10,
-        #'macd_fast_period': 12,
-        #'macd_slow_period': 26,
-        #'macd_signal_period': 9,
-        #'mfi_period': 14,
-        
-        #'bb_period': 12,
-        #'bb_std': 1.48225,
-        #'adx_period': 43,
-        #'adx_threshold': 22,
-        #'rsi_period': 22,
-        #'rsi_overbought': 64,
-        #'rsi_oversold': 30,
-        #'stop_loss_pct': 0.025,
-        'take_profit_pct': 0.14107,
-        #'atr_period': 3,
-        'atr_multiplier': 1.71064,
-        #'obv_ma_period': 10,
-        #'keltner_period': 21,
-        #'keltner_atr_factor': 1.6,
-        #'hma_period': 20,
-        #'vwap_std': 2.0,
+        'leverage': 10,
+        'macd_fast_period': 12,
+        'macd_slow_period': 26,
+        'macd_signal_period': 9,
+        'mfi_period': 14,
+        'obv_ma_period': 14,
+        'bb_period': 20,
+        'bb_std': 2.5,
+        'adx_period': 20,
+        'adx_threshold': 25,
+        'rsi_period': 20,
+        'rsi_overbought': 70,
+        'rsi_oversold': 30,
+        'stop_loss_pct': 0.02,
+        'take_profit_pct': 0.4,
+        'atr_period': 20,
+        'atr_multiplier': 2.5,
+        'keltner_period': 20,
+        'keltner_atr_factor': 2.0,
+        'hma_period': 20,
+        'vwap_std': 2.0,
     }
 
     #strategy.optimize_step_by_step(data, initial_params)
@@ -48,11 +49,6 @@ def run_parameter_optimization_strategy():
     strategy.run_strategy(data)
     strategy.calculate_metrics(data)
     strategy.plot_results(data)
-
-
-    #TODO: ehkä sillain että indicaattorit käyttää 1h dataa ja otetaan 15min 'close' dataa, 
-    # koska jos hinta tippuu/laskee paljon niin tulee muuten rekt
-
 
 def run_timeframe_optimization_strategy():
     # Initialize API and fetch data
