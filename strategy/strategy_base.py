@@ -414,7 +414,7 @@ class Strategy_base:
         pnl = sum(strategy.pnl)
         mdd = strategy.max_drawdown
 
-        if pnl <= 0 or mdd == 0:
+        if pnl <= 0:
             return None
 
         returns = pd.Series(strategy.pnl)
@@ -423,9 +423,9 @@ class Strategy_base:
             if len(returns) > 1 and returns.std() != 0 else 0
         )
 
-        weight_pnl = 0.85
-        weight_mdd = 0.14
-        weight_sharpe = 0.01
+        weight_pnl = 0.6
+        weight_mdd = 0.35
+        weight_sharpe = 0.05
 
         normalized_pnl = min(1.0, pnl / 1000) if pnl > 0 else max(-1.0, pnl / 1000)
         normalized_mdd = 1 - mdd

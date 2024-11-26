@@ -131,13 +131,23 @@ class Optimize_parameters(Strategy_base):
         obv_ma_condition_short = row['obv'] < row['obv_ma']
         
         # Long entry
-        if (bb_condition_long and adx_condition and rsi_condition_long and
-            obv_ma_condition_long):
-            return 1
+        #if (bb_condition_long and adx_condition and rsi_condition_long and
+        #    obv_ma_condition_long):
+        #    return 1
             
         # Short entry
-        elif (bb_condition_short and adx_condition and rsi_condition_short and
-              obv_ma_condition_short):
+        #elif (bb_condition_short and adx_condition and rsi_condition_short and
+        #      obv_ma_condition_short):
+        #    return -1
+
+        #TODO: Eri ehdot longille ja shortille? Pelkkä long tai short strat?
+
+        if (keltner_condition_long and
+            vwap_condition_long):
+            return 1
+
+        elif (keltner_condition_short and
+              vwap_condition_short):
             return -1
 
         return 0
@@ -214,14 +224,14 @@ class Optimize_parameters(Strategy_base):
                         'exit_type': 'stop_loss' if stop_hit else 'take_profit'
                     })
                     
-                    print("enp:", self.trades[laskuri]['entry_price'])
-                    print("exp:", self.trades[laskuri]['exit_price'])
-                    print("pnl:", self.trades[laskuri]['pnl'])
-                    print("pos:", self.trades[laskuri]['position'])
-                    print("bal:", self.trades[laskuri]['balance_after'])
-                    print("ext:", self.trades[laskuri]['exit_type'])
-                    print("pos_s:", self.position_size)
-                    laskuri += 1
+                    #print("enp:", self.trades[laskuri]['entry_price'])
+                    #print("exp:", self.trades[laskuri]['exit_price'])
+                    #print("pnl:", self.trades[laskuri]['pnl'])
+                    #print("pos:", self.trades[laskuri]['position'])
+                    #print("bal:", self.trades[laskuri]['balance_after'])
+                    #print("ext:", self.trades[laskuri]['exit_type'])
+                    #print("pos_s:", self.position_size)
+                    #laskuri += 1
 
                     # Reset position
                     self.current_position = 0
@@ -237,37 +247,8 @@ class Optimize_parameters(Strategy_base):
 
             #TODO: Better way to calculate position size
 
-            arvot = [600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200, 
-                     3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800, 5000, 5200, 5400, 5600, 5800, 6000,
-                     6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600, 7800, 8000, 8200, 8400, 8600, 8800,
-                     9000, 9200, 9400, 9600, 9800, 10000, 10200, 10400, 10600, 10800, 11000, 11200, 11400]
-            lisättävä = 1000
-            for arvo in arvot:
-                if self.current_balance > arvo:
-                    if arvo > 1250:
-                        lisättävä += 1500
-                    elif arvo > 2500:
-                        lisättävä += 2000
-                    elif arvo > 3750:
-                        lisättävä += 2500
-                    elif arvo > 5000:
-                        lisättävä += 3000
-                    elif arvo > 6250:
-                        lisättävä += 3500
-                    elif arvo > 7500:
-                        lisättävä += 4000
-                    elif arvo > 8750:  
-                        lisättävä += 5000
-                    elif arvo > 10000:
-                        lisättävä += 5000
-                    elif arvo > 11250:
-                        lisättävä += 6000
-                    elif arvo > 12500:
-                        lisättävä += 7000
-                    else:
-                        lisättävä += 1000
-                    self.position_size = self.starting_balance / 3 * self.leverage + lisättävä
-
+            self.position_size = self.current_balance / 3 * 0.8 * self.leverage
+            
             # Check entry conditions if not in position
             if self.current_position == 0:
                 entry_signal = self.check_entry_conditions(current_row)

@@ -34,7 +34,7 @@ def run_parameter_optimization_strategy():
         'rsi_overbought': 70,
         'rsi_oversold': 30,
         'stop_loss_pct': 0.02,
-        'take_profit_pct': 0.4,
+        'take_profit_pct': 0.04,
         'atr_period': 20,
         'atr_multiplier': 2.5,
         'keltner_period': 20,
@@ -43,12 +43,12 @@ def run_parameter_optimization_strategy():
         'vwap_std': 2.0,
     }
 
-    #strategy.optimize_step_by_step(data, initial_params)
+    strategy.optimize_step_by_step(data, initial_params)
     print("\nOptimization done")
 
-    strategy.run_strategy(data)
-    strategy.calculate_metrics(data)
-    strategy.plot_results(data)
+    #strategy.run_strategy(data)
+    #strategy.calculate_metrics(data)
+    #strategy.plot_results(data)
 
 def run_timeframe_optimization_strategy():
     # Initialize API and fetch data
