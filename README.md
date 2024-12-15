@@ -38,7 +38,7 @@ cp config/config.example.py config/config.py
 
 ## Features
 
-- Technical analysis using Bollinger Bands, RSI, ADX, Keltner channels, HMA and VWAP
+- Technical analysis using Bollinger Bands, RSI, ADX, Keltner channels, HMA, VWAP, MACD, OBV and MFI
 - Parameter optimization with parallel processing
 - Performance visualization
 - Risk management with take-profit and dynamic stop-loss

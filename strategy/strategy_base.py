@@ -10,7 +10,7 @@ class Strategy_base:
     def __init__(self, starting_balance: float, leverage: int):
         self.starting_balance = starting_balance
         self.leverage = leverage
-        self.position_size = starting_balance / 3 * leverage
+        self.position_size = self.starting_balance * self.leverage * 0.8
 
         self.reset_state()
 
@@ -24,7 +24,7 @@ class Strategy_base:
         self.peak_balance = self.starting_balance
         self.max_drawdown = 0
         self.balance_history = [self.starting_balance]
-        self.position_size = self.starting_balance / 2 * self.leverage
+        self.position_size = self.starting_balance * self.leverage * 0.8
 
     def calculate_bollinger_bands(self, series, period=20, std_dev=2.0):
         rolling_mean = series.rolling(window=period).mean()
@@ -288,8 +288,6 @@ class Strategy_base:
 
     def get_strategy_performance(self, df: pd.DataFrame) -> Dict:
         """Calculate strategy performance metrics"""
-        self.reset_state()
-        
         total_pnl = sum(self.pnl)
         num_trades = len(self.trades)
         winning_trades = len([t for t in self.trades if t['pnl'] > 0])
@@ -405,7 +403,7 @@ class Strategy_base:
         # Create a new instance to avoid shared state issues
         strategy = self.__class__(**test_params)
         strategy.reset_state()
-        strategy.run_strategy(data)
+        strategy.run_strategy(data, False)
 
         if len(strategy.trades) < 5:
             return None
