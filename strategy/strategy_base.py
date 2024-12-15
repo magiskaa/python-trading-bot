@@ -425,11 +425,9 @@ class Strategy_base:
         weight_mdd = 0.35
         weight_sharpe = 0.05
 
-        normalized_pnl = min(1.0, pnl / 1000) if pnl > 0 else max(-1.0, pnl / 1000)
+        normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range
         normalized_mdd = 1 - mdd
-        normalized_sharpe = (
-            min(1.0, sharpe_ratio / 2.0) if sharpe_ratio > 0 else max(-1.0, sharpe_ratio / 2.0)
-        )
+        normalized_sharpe = (min(1.0, sharpe_ratio / 2.0) if sharpe_ratio > 0 else max(-1.0, sharpe_ratio / 2.0))
 
         combined_metric = (
             weight_pnl * normalized_pnl +

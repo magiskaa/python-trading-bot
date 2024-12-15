@@ -146,7 +146,8 @@ class Optimize_parameters(Strategy_base):
         rsi_condition_short = row['rsi'] > self.rsi_overbought
         keltner_condition_long = row['close'] < row['kc_lower']
         keltner_condition_short = row['close'] > row['kc_upper']
-        hma_trend = 1 if row['close'] > row['hma'] else -1
+        hma_trend_long = row['close'] > row['hma']
+        hma_trend_short = row['close'] < row['hma']
         vwap_condition_long = row['close'] < row['vwap_lower']
         vwap_condition_short = row['close'] > row['vwap_upper']
         macd_condition_long = row['macd_line'] > row['macd_signal']
@@ -159,86 +160,82 @@ class Optimize_parameters(Strategy_base):
         obv_ma_condition_short = row['obv'] < row['obv_ma']
         
         # Long entry
-        if (bb_condition_long and adx_condition and rsi_condition_long and
-            obv_ma_condition_long):
+        if (keltner_condition_long and adx_condition and rsi_condition_long and
+            macd_condition_long):
             return 1
             
         # Short entry
-        elif (bb_condition_short and adx_condition and rsi_condition_short and
-              obv_ma_condition_short):
+        elif (keltner_condition_short and adx_condition and rsi_condition_short and
+              macd_condition_short):
             return -1
 
         return 0
 
     def check_entry_automated(self, row: pd.Series) -> int:
-        """Determine the trading signal (1 for buy, -1 for sell, 0 for hold)"""
+        """Entry conditions check for automated_optimization"""
         buy_signals = []
         sell_signals = []
 
         if self.bb_period is not None:
-            if row['close'] < row['bb_lower']:
-                buy_signals.append(True)
-            elif row['close'] > row['bb_upper']:
-                sell_signals.append(True)
+            bb_condition_long = row['close'] < row['bb_lower']
+            buy_signals.append(bb_condition_long)
+            bb_condition_short = row['close'] > row['bb_upper']
+            sell_signals.append(bb_condition_short)
 
         if self.adx_period is not None:
-            if row['adx'] > self.adx_threshold:
-                buy_signals.append(True)
-                sell_signals.append(True)
+            adx_condition = row['adx'] > self.adx_threshold
+            buy_signals.append(adx_condition)
+            sell_signals.append(adx_condition)
         
         if self.rsi_period is not None:
-            if row['rsi'] < self.rsi_oversold:
-                buy_signals.append(True)
-            elif row['rsi'] > self.rsi_overbought:
-                sell_signals.append(True)
+            rsi_condition_long = row['rsi'] < self.rsi_oversold
+            buy_signals.append(rsi_condition_long)
+            rsi_condition_short = row['rsi'] > self.rsi_overbought
+            sell_signals.append(rsi_condition_short)
             
         if self.keltner_period is not None:
-            if row['close'] < row['kc_lower']:
-                buy_signals.append(True)
-            elif row['close'] > row['kc_upper']:
-                sell_signals.append(True)
+            keltner_condition_long = row['close'] < row['kc_lower']
+            buy_signals.append(keltner_condition_long)
+            keltner_condition_short = row['close'] > row['kc_upper']
+            sell_signals.append(keltner_condition_short)
 
         if self.hma_period is not None:
-            if row['close'] > row['hma']:
-                buy_signals.append(True)
-            else:
-                sell_signals.append(True)
-
-
-        # TODO: vwap saa None arvon, miksi?
-
+            hma_trend_long = row['close'] > row['hma']
+            buy_signals.append(hma_trend_long)
+            hma_trend_short = row['close'] < row['hma']
+            sell_signals.append(hma_trend_short)
 
         if self.vwap_std is not None:
-            if row['close'] < row['vwap_lower']:
-                buy_signals.append(True)
-            elif row['close'] > row['vwap_upper']:
-                sell_signals.append(True)
+            vwap_condition_long = row['close'] < row['vwap_lower']
+            buy_signals.append(vwap_condition_long)
+            vwap_condition_short = row['close'] > row['vwap_upper']
+            sell_signals.append(vwap_condition_short)
 
         if self.macd_fast_period is not None:
-            if row['macd_line'] > row['macd_signal']:
-                buy_signals.append(True)
-            elif row['macd_line'] < row['macd_signal']:
-                sell_signals.append(True)
+            macd_condition_long = row['macd_line'] > row['macd_signal']
+            buy_signals.append(macd_condition_long)
+            macd_condition_short = row['macd_line'] < row['macd_signal']
+            sell_signals.append(macd_condition_short)
 
         if self.mfi_period is not None:
-            if row['mfi'] < 20:
-                buy_signals.append(True)
-            elif row['mfi'] > 80:
-                sell_signals.append(True)
+            mfi_condition_long = row['mfi'] < 20
+            buy_signals.append(mfi_condition_long)
+            mfi_condition_short = row['mfi'] > 80
+            sell_signals.append(mfi_condition_short)
 
         if self.obv_ma_period is not None:
-            if row['obv'] > row['obv_ma']:
-                buy_signals.append(True)
-            elif row['obv'] < row['obv_ma']:
-                sell_signals.append(True)
+            obv_ma_condition_long = row['obv'] > row['obv_ma']
+            buy_signals.append(obv_ma_condition_long)
+            obv_ma_condition_short = row['obv'] < row['obv_ma']
+            sell_signals.append(obv_ma_condition_short)
 
-        # Combine signals
-        if any(buy_signals) and not sell_signals:
+        if all(buy_signals):
             return 1  # Buy signal
-        elif any(sell_signals) and not buy_signals:
+        
+        elif all(sell_signals):
             return -1  # Sell signal
-        else:
-            return 0  # Hold
+        
+        return 0  # Hold
         
     def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
@@ -253,7 +250,9 @@ class Optimize_parameters(Strategy_base):
         # Store dataframe and calculate indicators
         self.last_df = df
         df = self.calculate_indicators(df)
-        laskuri = 0
+
+        # Counter for printing trade details (for debugging)
+        counter = 0
         
         # Initialize arrays
         positions = np.zeros(len(df))
@@ -315,14 +314,15 @@ class Optimize_parameters(Strategy_base):
                         'exit_type': 'stop_loss' if stop_hit else 'take_profit'
                     })
                     
-                    #print("enp:", self.trades[laskuri]['entry_price'])
-                    #print("exp:", self.trades[laskuri]['exit_price'])
-                    #print("pnl:", self.trades[laskuri]['pnl'])
-                    #print("pos:", self.trades[laskuri]['position'])
-                    #print("bal:", self.trades[laskuri]['balance_after'])
-                    #print("ext:", self.trades[laskuri]['exit_type'])
+                    # Print trade details (for debugging)
+                    #print("enp:", self.trades[counter]['entry_price'])
+                    #print("exp:", self.trades[counter]['exit_price'])
+                    #print("pnl:", self.trades[counter]['pnl'])
+                    #print("pos:", self.trades[counter]['position'])
+                    #print("bal:", self.trades[counter]['balance_after'])
+                    #print("ext:", self.trades[counter]['exit_type'])
                     #print("pos_s:", self.position_size)
-                    #laskuri += 1
+                    #counter += 1
 
                     # Reset position
                     self.current_position = 0
@@ -366,9 +366,6 @@ class Optimize_parameters(Strategy_base):
                     current_row, 
                     self.current_position
                 )
-                #if len(self.trades) < 3:
-                #    print("Current price", current_price)
-                #    print("New stop loss:", new_stop)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

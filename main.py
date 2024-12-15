@@ -1,5 +1,6 @@
 import optuna
 from binance.client import Client
+import numpy as np
 from strategy.optimize_parameters import Optimize_parameters
 from strategy.optimize_time_frame import Optimize_time_frame
 from strategy.strategy_utils import fetch_data, fetch_multi_timeframe_data, find_best_timeframe
@@ -22,11 +23,6 @@ def run_parameter_optimization_strategy():
     # Initial parameters to start with
     initial_params = {
         'leverage': 10,
-        'macd_fast_period': 12,
-        'macd_slow_period': 26,
-        'macd_signal_period': 9,
-        'mfi_period': 14,
-        'obv_ma_period': 14,
         'bb_period': 20,
         'bb_std': 2.5,
         'adx_period': 20,
@@ -42,6 +38,11 @@ def run_parameter_optimization_strategy():
         'keltner_atr_factor': 2.0,
         'hma_period': 20,
         'vwap_std': 2.0,
+        'macd_fast_period': 12,
+        'macd_slow_period': 26,
+        'macd_signal_period': 9,
+        'mfi_period': 14,
+        'obv_ma_period': 14,
     }
 
     #strategy.optimize_step_by_step(data, initial_params)
@@ -116,6 +117,7 @@ def automated_optimization():
     global data
     data = fetch_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START)
 
+    # Run optimization
     storage = 'sqlite:///data/parameter_optimization.db'
     study_name = 'parameter_optimization'
 
@@ -129,10 +131,12 @@ def automated_optimization():
 
     study.optimize(objective, n_trials=200)
 
+    # Print results
     print("Best parameters: ", study.best_params)
     print("Best value: ", study.best_value)
 
 def objective(trial):
+    # Indicators to use
     use_bb = trial.suggest_categorical('use_bb', [True, False])
     use_adx = trial.suggest_categorical('use_adx', [True, False])
     use_rsi = trial.suggest_categorical('use_rsi', [True, False])
@@ -146,10 +150,16 @@ def objective(trial):
     # Initialize strategy
     strategy = Optimize_parameters()
 
+    # Set common parameters
+    strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.01, 0.06)
+    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.015, 0.145)
+    strategy.atr_period = trial.suggest_int('atr_period', 1, 35)
+    strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.5, 2.5)
+
     # Conditional parameter definitions
     if use_bb:
-        bb_period = trial.suggest_int('bb_period', 1, 30)
-        bb_std = trial.suggest_float('bb_std', 0.2, 3.0)
+        bb_period = trial.suggest_int('bb_period', 1, 25)
+        bb_std = trial.suggest_float('bb_std', 0.2, 2.5)
         strategy.bb_period = bb_period
         strategy.bb_std = bb_std
     else:
@@ -157,7 +167,7 @@ def objective(trial):
         strategy.bb_std = None
     
     if use_adx:
-        adx_period = trial.suggest_int('adx_period', 1, 60)
+        adx_period = trial.suggest_int('adx_period', 1, 50)
         adx_threshold = trial.suggest_int('adx_threshold', 1, 50)
         strategy.adx_period = adx_period
         strategy.adx_threshold = adx_threshold
@@ -166,9 +176,9 @@ def objective(trial):
         strategy.adx_threshold = None
 
     if use_rsi:
-        rsi_period = trial.suggest_int('rsi_period', 1, 50)
-        rsi_overbought = trial.suggest_int('rsi_overbought', 55, 95)
-        rsi_oversold = trial.suggest_int('rsi_oversold', 5, 45)
+        rsi_period = trial.suggest_int('rsi_period', 1, 40)
+        rsi_overbought = trial.suggest_int('rsi_overbought', 60, 90)
+        rsi_oversold = trial.suggest_int('rsi_oversold', 10, 40)
         strategy.rsi_period = rsi_period
         strategy.rsi_overbought = rsi_overbought
         strategy.rsi_oversold = rsi_oversold
@@ -178,8 +188,8 @@ def objective(trial):
         strategy.rsi_oversold = None
 
     if use_keltner:
-        keltner_period = trial.suggest_int('keltner_period', 1, 35)
-        keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.5, 3.0)
+        keltner_period = trial.suggest_int('keltner_period', 1, 30)
+        keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.5, 2.5)
         strategy.keltner_period = keltner_period
         strategy.keltner_atr_factor = keltner_atr_factor
     else:
@@ -187,13 +197,13 @@ def objective(trial):
         strategy.keltner_atr_factor = None
 
     if use_hma:
-        hma_period = trial.suggest_int('hma_period', 1, 35)
+        hma_period = trial.suggest_int('hma_period', 1, 30)
         strategy.hma_period = hma_period
     else:
         strategy.hma_period = None
 
     if use_vwap:
-        vwap_std = trial.suggest_float('vwap_std', 0.2, 3.0)
+        vwap_std = trial.suggest_float('vwap_std', 0.2, 2.5)
         strategy.vwap_std = vwap_std
     else:
         strategy.vwap_std = None
@@ -211,17 +221,18 @@ def objective(trial):
         strategy.macd_signal_period = None
 
     if use_mfi:
-        mfi_period = trial.suggest_int('mfi_period', 1, 35)
+        mfi_period = trial.suggest_int('mfi_period', 1, 30)
         strategy.mfi_period = mfi_period
     else:
         strategy.mfi_period = None
 
     if use_obv:
-        obv_ma_period = trial.suggest_int('obv_ma_period', 1, 40)
+        obv_ma_period = trial.suggest_int('obv_ma_period', 1, 35)   
         strategy.obv_ma_period = obv_ma_period
     else:
         strategy.obv_ma_period = None
-    
+
+    # Run strategy
     strategy.reset_state()
     strategy.run_strategy(data, True)
 
@@ -232,21 +243,23 @@ def objective(trial):
     print("\nPnL: ", pnl)
     print("Max Drawdown: ", max_drawdown)
 
-    weight_pnl = 0.5
-    weight_mdd = 0.5
+    # Calculate combined metric
+    weight_pnl = 0.7
+    weight_mdd = 0.3
 
-    normalized_pnl = min(1.0, pnl / 1000) if pnl > 0 else max(-1.0, pnl / 1000)
+    # Logarithmic normalization for pnl
+    normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range
+    
     normalized_mdd = 1 - max_drawdown / 100
 
     combined_metric = (
         weight_pnl * normalized_pnl +
-        weight_mdd * normalized_mdd
-    )
-
+        weight_mdd * normalized_mdd)
+    
     return combined_metric
 
 
 if __name__ == '__main__':
-    #run_parameter_optimization_strategy()
+    run_parameter_optimization_strategy()
     #run_timeframe_optimization_strategy()
-    automated_optimization()
+    #automated_optimization()
