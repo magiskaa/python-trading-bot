@@ -22,7 +22,6 @@ def run_parameter_optimization_strategy():
 
     # Initial parameters to start with
     initial_params = {
-        'leverage': 10,
         'bb_period': 20,
         'bb_std': 2.5,
         'adx_period': 20,
@@ -151,84 +150,68 @@ def objective(trial):
     strategy = Optimize_parameters()
 
     # Set common parameters
-    strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.01, 0.06)
-    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.015, 0.145)
-    strategy.atr_period = trial.suggest_int('atr_period', 1, 35)
-    strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.5, 2.5)
+    strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.001, 0.1)
+    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.01, 0.15)
+    strategy.atr_period = trial.suggest_int('atr_period', 1, 50)
+    strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.1, 3.5)
 
     # Conditional parameter definitions
     if use_bb:
-        bb_period = trial.suggest_int('bb_period', 1, 25)
-        bb_std = trial.suggest_float('bb_std', 0.2, 2.5)
-        strategy.bb_period = bb_period
-        strategy.bb_std = bb_std
+        strategy.bb_period = trial.suggest_int('bb_period', 1, 40)
+        strategy.bb_std = trial.suggest_float('bb_std', 0.1, 3.5)
     else:
         strategy.bb_period = None
         strategy.bb_std = None
     
     if use_adx:
-        adx_period = trial.suggest_int('adx_period', 1, 50)
-        adx_threshold = trial.suggest_int('adx_threshold', 1, 50)
-        strategy.adx_period = adx_period
-        strategy.adx_threshold = adx_threshold
+        strategy.adx_period = trial.suggest_int('adx_period', 1, 60)
+        strategy.adx_threshold = trial.suggest_int('adx_threshold', 1, 60)
     else:  
         strategy.adx_period = None
         strategy.adx_threshold = None
 
     if use_rsi:
-        rsi_period = trial.suggest_int('rsi_period', 1, 40)
-        rsi_overbought = trial.suggest_int('rsi_overbought', 60, 90)
-        rsi_oversold = trial.suggest_int('rsi_oversold', 10, 40)
-        strategy.rsi_period = rsi_period
-        strategy.rsi_overbought = rsi_overbought
-        strategy.rsi_oversold = rsi_oversold
+        strategy.rsi_period = trial.suggest_int('rsi_period', 1, 50)
+        strategy.rsi_overbought = trial.suggest_int('rsi_overbought', 55, 95)
+        strategy.rsi_oversold = trial.suggest_int('rsi_oversold', 5, 45)
     else:
         strategy.rsi_period = None
         strategy.rsi_overbought = None
         strategy.rsi_oversold = None
 
     if use_keltner:
-        keltner_period = trial.suggest_int('keltner_period', 1, 30)
-        keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.5, 2.5)
-        strategy.keltner_period = keltner_period
-        strategy.keltner_atr_factor = keltner_atr_factor
+        strategy.keltner_period = trial.suggest_int('keltner_period', 1, 40)
+        strategy.keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.1, 3.5)
     else:
         strategy.keltner_period = None
         strategy.keltner_atr_factor = None
 
     if use_hma:
-        hma_period = trial.suggest_int('hma_period', 1, 30)
-        strategy.hma_period = hma_period
+        strategy.hma_period = trial.suggest_int('hma_period', 1, 35)
     else:
         strategy.hma_period = None
 
     if use_vwap:
-        vwap_std = trial.suggest_float('vwap_std', 0.2, 2.5)
-        strategy.vwap_std = vwap_std
+        strategy.vwap_std = trial.suggest_float('vwap_std', 0.1, 3.5)
     else:
         strategy.vwap_std = None
 
     if use_macd:
-        macd_fast_period = trial.suggest_int('macd_fast_period', 1, 40)
-        macd_slow_period = trial.suggest_int('macd_slow_period', 1, 40)
-        macd_signal_period = trial.suggest_int('macd_signal_period', 1, 40)
-        strategy.macd_fast_period = macd_fast_period
-        strategy.macd_slow_period = macd_slow_period
-        strategy.macd_signal_period = macd_signal_period
+        strategy.macd_fast_period = trial.suggest_int('macd_fast_period', 1, 50)
+        strategy.macd_slow_period = trial.suggest_int('macd_slow_period', 1, 50)
+        strategy.macd_signal_period = trial.suggest_int('macd_signal_period', 1, 50)
     else:
         strategy.macd_fast_period = None
         strategy.macd_slow_period = None
         strategy.macd_signal_period = None
 
     if use_mfi:
-        mfi_period = trial.suggest_int('mfi_period', 1, 30)
-        strategy.mfi_period = mfi_period
+        strategy.mfi_period = trial.suggest_int('mfi_period', 1, 40)
     else:
         strategy.mfi_period = None
 
     if use_obv:
-        obv_ma_period = trial.suggest_int('obv_ma_period', 1, 35)   
-        strategy.obv_ma_period = obv_ma_period
+        strategy.obv_ma_period = trial.suggest_int('obv_ma_period', 1, 50)
     else:
         strategy.obv_ma_period = None
 
@@ -244,8 +227,8 @@ def objective(trial):
     print("Max Drawdown: ", max_drawdown)
 
     # Calculate combined metric
-    weight_pnl = 0.7
-    weight_mdd = 0.3
+    weight_pnl = 0.5
+    weight_mdd = 0.5
 
     # Logarithmic normalization for pnl
     normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range

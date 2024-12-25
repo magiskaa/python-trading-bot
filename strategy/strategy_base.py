@@ -374,7 +374,7 @@ class Strategy_base:
                             print(
                                 f"Value: {value}, PnL: ${result['pnl']:.2f}, "
                                 f"MDD: {result['mdd']*100:.2f}%, Sharpe: {result['sharpe_ratio']:.2f}, "
-                                f"Combined Metric: {combined_metric:.4f}, "
+                                f"Combined Metric: {combined_metric:.6f}, "
                                 f"Trades: {result['num_trades']}"
                             )
                         except Exception as e:
@@ -421,18 +421,20 @@ class Strategy_base:
             if len(returns) > 1 and returns.std() != 0 else 0
         )
 
-        weight_pnl = 0.6
-        weight_mdd = 0.35
+        # Weight of each metric (sum of weights = 1)
+        weight_pnl = 0.5
+        weight_mdd = 0.5
         weight_sharpe = 0.05
 
         normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range
         normalized_mdd = 1 - mdd
         normalized_sharpe = (min(1.0, sharpe_ratio / 2.0) if sharpe_ratio > 0 else max(-1.0, sharpe_ratio / 2.0))
 
+        # Delete comment from below if you want to include sharpe ratio in the metric
         combined_metric = (
             weight_pnl * normalized_pnl +
-            weight_mdd * normalized_mdd +
-            weight_sharpe * normalized_sharpe
+            weight_mdd * normalized_mdd 
+            #+ weight_sharpe * normalized_sharpe
         )
 
         if combined_metric <= 0:
