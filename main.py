@@ -1,13 +1,22 @@
 import optuna
 from binance.client import Client
 import numpy as np
+import pandas as pd
 from strategy.optimize_parameters import Optimize_parameters
-from strategy.optimize_time_frame import Optimize_time_frame
 from strategy.multistrategy_manager import Multistrategy_manager
-from strategy.strategy_utils import fetch_data, fetch_multi_timeframe_data, find_best_timeframe
 from config.config import SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
+
+def fetch_data(client, symbol, interval, start_str):
+    klines = client.get_historical_klines(symbol, interval, start_str)
+    df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time',
+                                        'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 
+                                        'taker_buy_quote_asset_volume', 'ignore'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df.set_index('timestamp', inplace=True)
+    df = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
+    return df
 
 def run_parameter_optimization_strategy():
     # Initialize API and fetch data
@@ -51,65 +60,6 @@ def run_parameter_optimization_strategy():
     strategy.run_strategy(data, False)
     strategy.calculate_metrics(data)
     strategy.plot_results(data)
-
-def run_timeframe_optimization_strategy():
-    # Initialize API and fetch data
-    client = Client(API_KEY, API_SECRET)
-
-    # Initialize strategy
-    strategy = Optimize_time_frame(
-        starting_balance=DEFAULT_PARAMS['starting_balance'],
-        leverage=DEFAULT_PARAMS['leverage']
-    )
-    
-    # Initial parameters to start with
-    initial_params = {
-        'bb_period': 20,
-        'bb_std': 2.0,
-        'adx_period': 20,
-        'adx_threshold': 25,
-        'rsi_period': 20,
-        'rsi_overbought': 70,
-        'rsi_oversold': 30,
-        'take_profit_pct': 0.05,
-        'atr_period': 14,
-        'atr_multiplier': 2.0
-    }
-
-    # First optimize on 1-hour timeframe
-    #print("Fetching 1-hour data for initial optimization...")
-    hour_data = fetch_multi_timeframe_data(
-        client, 
-        SYMBOL, 
-        BACKTEST_START,  # Start with recent data for faster testing
-        [Client.KLINE_INTERVAL_1HOUR]
-    )[Client.KLINE_INTERVAL_1HOUR]
-
-    # Find optimal parameters
-    print("\nOptimizing parameters...")
-    best_params = strategy.optimize_step_by_step(hour_data, initial_params)
-    
-    # Fetch data for different timeframes
-    timeframes = [
-        Client.KLINE_INTERVAL_15MINUTE,
-        Client.KLINE_INTERVAL_30MINUTE,
-        Client.KLINE_INTERVAL_1HOUR
-    ]
-    
-    # Test on different timeframes
-    #print("\nFetching multi-timeframe data...")
-    timeframe_data = fetch_multi_timeframe_data(
-        client,
-        SYMBOL,
-        "3 months ago UTC",
-        timeframes
-    )
-    strategy.run_strategy(hour_data, False)
-    strategy.calculate_metrics(hour_data)
-    strategy.plot_results(hour_data)
-    
-    # Find best timeframe
-    find_best_timeframe(strategy, timeframe_data, best_params)
 
 def automated_optimization():
     # Initialize API and fetch data
@@ -304,7 +254,12 @@ def run_multistrategy_optimization():
     
 
 if __name__ == '__main__':
-    #run_parameter_optimization_strategy()
-    #run_timeframe_optimization_strategy()
-    #automated_optimization()
-    run_multistrategy_optimization()
+    # Choose strategy to run
+    strategy = 2
+    match strategy:
+        case 1:
+            run_parameter_optimization_strategy()   # Optimize a particular strategys parameters
+        case 2:
+            automated_optimization()                # Find the best strategy
+        case 3:
+            run_multistrategy_optimization()        # Combine and run multiple strategies together
