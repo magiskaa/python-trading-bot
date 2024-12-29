@@ -17,6 +17,7 @@ class Multistrategy_manager(Optimize_multistrategy):
         self.take_profit_pct = MULTISTRAT_PARAMS['take_profit_pct']
         self.pnl = []
         self.trades = []
+        self.active_strategy = None
         self.current_balance = DEFAULT_PARAMS['starting_balance']
         self.peak_balance = DEFAULT_PARAMS['starting_balance']
         self.max_drawdown = 0
@@ -28,6 +29,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                      take_profit_pct, atr_period, atr_multiplier, keltner_period, 
                      keltner_atr_factor, hma_period, vwap_std, macd_fast_period, 
                      macd_slow_period, macd_signal_period, mfi_period, obv_ma_period):
+        # Creates a new strategy
         strategy = Optimize_multistrategy(
             bb_period,
             bb_std,
@@ -50,6 +52,7 @@ class Multistrategy_manager(Optimize_multistrategy):
             mfi_period,
             obv_ma_period
         )
+        # Adds the strategy to the used strategies list
         self.strategies.append(strategy)
         
     def calculate_metrics(self):
@@ -83,25 +86,30 @@ class Multistrategy_manager(Optimize_multistrategy):
 
     def run_strategies(self, df: pd.DataFrame) -> pd.DataFrame:
         """Run multiple strategies at the same time"""
+        # Store dataframe and calculate indicators
         self.strategies[0].last_df = df
         self.strategies[1].last_df = df
         df0 = self.strategies[0].calculate_indicators(df.copy())
         df1 = self.strategies[1].calculate_indicators(df.copy())
 
+        # Counter and for printing trade details (for debugging)
         counter = 0
+        isDebug = False # Change to True if you want to print trades
 
-        max_len = len(df)
+        # Initialize arrays
+        df_len = len(df)
+        positions = np.zeros(df_len)
+        self.balance_history = [DEFAULT_PARAMS['starting_balance']] * df_len
+        stop_losses = np.zeros(df_len)
 
-        positions = np.zeros(max_len)
-        self.balance_history = [DEFAULT_PARAMS['starting_balance']] * max_len
-        stop_losses = np.zeros(max_len)
-
-        for i in range(max_len):
+        for i in range(df_len):
             current_price = df['close'].iloc[i]
             current_row_0 = df0.iloc[i]
             current_row_1 = df1.iloc[i]
 
+            # Check exit conditions first
             if self.current_position != 0:
+                # Check stop loss and take profit 
                 stop_hit = (
                     (self.current_position == 1 and current_price < stop_losses[i-1]) or
                     (self.current_position == -1 and current_price > stop_losses[i-1])
@@ -113,15 +121,18 @@ class Multistrategy_manager(Optimize_multistrategy):
                 )
 
                 if stop_hit or take_profit_hit:
+                    # Calculate PnL
                     price_change = (current_price - self.entry_price) / self.entry_price
                     pnl = self.position_size * price_change * self.current_position
                     self.pnl.append(pnl)
                     self.current_balance += pnl
 
+                    # Update peak balance and drawdown
                     self.peak_balance = max(self.peak_balance, self.current_balance)
                     current_drawdown = (self.peak_balance - self.current_balance) / self.peak_balance
                     self.max_drawdown = max(self.max_drawdown, current_drawdown)
 
+                    # Record trade
                     self.trades.append({
                         'entry_price': self.entry_price,
                         'exit_price': current_price,
@@ -132,14 +143,15 @@ class Multistrategy_manager(Optimize_multistrategy):
                     })
 
                     # Print trade details (for debugging)
-                    #print("enp:", self.trades[counter]['entry_price'])
-                    #print("exp:", self.trades[counter]['exit_price'])
-                    #print("pnl:", self.trades[counter]['pnl'])
-                    #print("pos:", self.trades[counter]['position'])
-                    #print("bal:", self.trades[counter]['balance_after'])
-                    #print("ext:", self.trades[counter]['exit_type'])
-                    #print("pos_s:", self.position_size)
-                    #counter += 1
+                    if isDebug:
+                        print("enp:", self.trades[counter]['entry_price'])
+                        print("exp:", self.trades[counter]['exit_price'])
+                        print("pnl:", self.trades[counter]['pnl'])
+                        print("pos:", self.trades[counter]['position'])
+                        print("bal:", self.trades[counter]['balance_after'])
+                        print("ext:", self.trades[counter]['exit_type'])
+                        print("pos_s:", self.position_size)
+                        counter += 1
 
                     # Reset position
                     self.current_position = 0
@@ -149,52 +161,53 @@ class Multistrategy_manager(Optimize_multistrategy):
             else: 
                 positions[i] = 0
 
+            # Update balance history
             self.balance_history[i] = self.current_balance
 
+            # Update position size
             self.position_size = self.current_balance * DEFAULT_PARAMS['leverage'] * 0.8
             
-            #eka_stratti = True
+            # Check entry conditions if not in position
             if self.current_position == 0:
-                entry_signal = self.strategies[0].check_entry_automated(current_row_0)
-                #if entry_signal == 0:
-                #    entry_signal = self.strategies[1].check_entry_automated(current_row_1)
-                #    eka_stratti = False
-                
-                if entry_signal != 0:
-                    self.current_position = entry_signal
+                entry_signal_0 = self.strategies[0].check_entry_automated(current_row_0)
+                entry_signal_1 = self.strategies[1].check_entry_automated(current_row_1)
+                if entry_signal_0 != 0:
+                    self.current_position = entry_signal_0
                     self.entry_price = current_price
-                    positions[i] = entry_signal
-                    
-                    #if eka_stratti:
+                    positions[i] = entry_signal_0
+                    self.active_strategy = 0
                     self.take_profit_pct = self.strategies[0].take_profit_pct
-                    stop_losses[i] = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, entry_signal)
-                    #else:
-                    #    self.take_profit_pct = self.strategies[1].take_profit_pct
-                    #    stop_losses[i] = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, entry_signal)
+                    stop_losses[i] = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, entry_signal_0)
+
+                elif entry_signal_1 != 0:
+                    self.current_position = entry_signal_1
+                    self.entry_price = current_price
+                    positions[i] = entry_signal_1
+                    self.active_strategy = 1
+                    self.take_profit_pct = self.strategies[1].take_profit_pct
+                    stop_losses[i] = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, entry_signal_1)
                 else:
                     positions[i] = 0
             else:
                 positions[i] = self.current_position
 
+            # Update trailing stop if in position
             if self.current_position != 0:
-                #if eka_stratti:
-                new_stop = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, self.current_position)
-                #else:
-                #    new_stop = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, self.current_position)
+                if self.active_strategy == 0:
+                    new_stop = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, self.current_position)
+                else:
+                    new_stop = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, self.current_position)
 
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:    
                     stop_losses[i] = min(new_stop, stop_losses[i-1])
                 
+        # Add results to dataframe
         df['position'] = positions
         df['balance'] = self.balance_history
         df['stop_loss'] = stop_losses
 
         return df
-
-
-
-
 
 

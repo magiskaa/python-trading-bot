@@ -39,10 +39,14 @@ cp config/config.example.py config/config.py
 ## Features
 
 - Technical analysis using Bollinger Bands, RSI, ADX, Keltner channels, HMA, VWAP, MACD, OBV and MFI
-- Parameter optimization with parallel processing
+- Trading strategy finder using optuna library
+- Strategy parameter optimization with parallel processing
+- Multiple strategy performance testing
 - Performance visualization
 - Risk management with take-profit and dynamic stop-loss
-- Backtesting capabilities
+
+Features not yet implemented
+- Futures trading with real money
 
 ## Configuration
 
@@ -51,6 +55,7 @@ Edit `config/config.py` to set your:
 - Trading pairs
 - Default parameters
 - Risk management settings
+- Parameters for multistrategy testing
 
 ## License
 

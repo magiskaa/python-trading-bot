@@ -253,6 +253,7 @@ class Optimize_parameters(Strategy_base):
 
         # Counter for printing trade details (for debugging)
         counter = 0
+        isDebug = False # Change to True if you want to print trades
         
         # Initialize arrays
         positions = np.zeros(len(df))
@@ -315,14 +316,15 @@ class Optimize_parameters(Strategy_base):
                     })
                     
                     # Print trade details (for debugging)
-                    #print("enp:", self.trades[counter]['entry_price'])
-                    #print("exp:", self.trades[counter]['exit_price'])
-                    #print("pnl:", self.trades[counter]['pnl'])
-                    #print("pos:", self.trades[counter]['position'])
-                    #print("bal:", self.trades[counter]['balance_after'])
-                    #print("ext:", self.trades[counter]['exit_type'])
-                    #print("pos_s:", self.position_size)
-                    #counter += 1
+                    if isDebug:
+                        print("enp:", self.trades[counter]['entry_price'])
+                        print("exp:", self.trades[counter]['exit_price'])
+                        print("pnl:", self.trades[counter]['pnl'])
+                        print("pos:", self.trades[counter]['position'])
+                        print("bal:", self.trades[counter]['balance_after'])
+                        print("ext:", self.trades[counter]['exit_type'])
+                        print("pos_s:", self.position_size)
+                        counter += 1
 
                     # Reset position
                     self.current_position = 0
