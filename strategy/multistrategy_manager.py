@@ -1,17 +1,12 @@
-from strategy.strategy_base import Strategy_base
 from strategy.optimize_multistrategy import Optimize_multistrategy
 from config.config import DEFAULT_PARAMS, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class Multistrategy_manager(Optimize_multistrategy):
     def __init__(self):
         self.strategies = []
-
-        self.reset_state()
-
-    def reset_state(self):
-        """Reset the strategy state for new runs"""
         self.current_position = 0
         self.entry_price = 0
         self.take_profit_pct = MULTISTRAT_PARAMS['take_profit_pct']
@@ -84,13 +79,88 @@ class Multistrategy_manager(Optimize_multistrategy):
         else:
             print("No trades were made.")
 
+    def plot_results(self, df: pd.DataFrame):
+        """Plot price and account balance history"""
+        plt.figure(figsize=(15, 8))
+        
+        # Create multiple y-axes
+        ax1 = plt.gca()
+        ax2 = ax1.twinx()
+        ax3 = ax1.twinx()
+        
+        # Offset the right axes to make room for both scales
+        ax3.spines['right'].set_position(('outward', 60))
+        
+        # Plot asset price (e.g., BTC price)
+        line1 = ax1.plot(
+            df.index, 
+            df['close'], 
+            label='Asset Price', 
+            color='gray', 
+            alpha=0.6
+        )
+        
+        # Calculate percentage gains and PnL using the balance history
+        balance_series = pd.Series(self.balance_history, index=df.index)
+        pct_gains = ((balance_series / DEFAULT_PARAMS['starting_balance'] - 1) * 100)
+        pnl_history = (balance_series - DEFAULT_PARAMS['starting_balance'])
+        
+        # Plot balance as percentage gain
+        line2 = ax2.plot(
+            df.index, 
+            pct_gains,
+            label='Account Balance (%)', 
+            color='green',
+            linewidth=2
+        )
+        
+        # Plot PnL in dollars
+        line3 = ax3.plot(
+            df.index,
+            pnl_history,
+            label='PnL ($)',
+            color='blue',
+            linewidth=2,
+            linestyle='--'
+        )
+        
+        # Set labels and title
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Asset Price ($)', color='gray')
+        ax2.set_ylabel('Account Balance (%)', color='green')
+        ax3.set_ylabel('PnL ($)', color='blue')
+        
+        plt.title('Trading Strategy Performance', pad=20)
+        
+        # Combine all lines and labels for the legend
+        lines = line1 + line2 + line3
+        labels = [line.get_label() for line in lines]
+        ax1.legend(lines, labels, loc='upper left')
+        
+        # Format axis colors
+        ax1.tick_params(axis='y', labelcolor='gray')
+        ax2.tick_params(axis='y', labelcolor='green')
+        ax3.tick_params(axis='y', labelcolor='blue')
+        
+        # Add grid
+        ax2.grid(True, alpha=0.3)
+        ax3.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        try:
+            plt.savefig('data/multistrategy_results.png')
+        except Exception as e:
+            print(f"Error saving figure: {e}")
+        finally:
+            plt.close()
+
     def run_strategies(self, df: pd.DataFrame) -> pd.DataFrame:
         """Run multiple strategies at the same time"""
-        # Store dataframe and calculate indicators
-        self.strategies[0].last_df = df
-        self.strategies[1].last_df = df
-        df0 = self.strategies[0].calculate_indicators(df.copy())
-        df1 = self.strategies[1].calculate_indicators(df.copy())
+        # Store dataframe and calculate indicators for each strategy
+        dfs = [df.copy()] * len(self.strategies)
+        for i, strategy in enumerate(self.strategies):
+            strategy.last_df = df
+            dfs[i] = strategy.calculate_indicators(df.copy())
 
         # Counter and for printing trade details (for debugging)
         counter = 0
@@ -104,8 +174,9 @@ class Multistrategy_manager(Optimize_multistrategy):
 
         for i in range(df_len):
             current_price = df['close'].iloc[i]
-            current_row_0 = df0.iloc[i]
-            current_row_1 = df1.iloc[i]
+            current_rows = [df.copy().iloc[i]] * len(self.strategies)
+            for j, strategy in enumerate(self.strategies):
+                current_rows[j] = dfs[j].iloc[i]
 
             # Check exit conditions first
             if self.current_position != 0:
@@ -169,40 +240,27 @@ class Multistrategy_manager(Optimize_multistrategy):
             
             # Check entry conditions if not in position
             if self.current_position == 0:
-                entry_signal_0 = self.strategies[0].check_entry_automated(current_row_0)
-                entry_signal_1 = self.strategies[1].check_entry_automated(current_row_1)
-                if entry_signal_0 != 0:
-                    self.current_position = entry_signal_0
-                    self.entry_price = current_price
-                    positions[i] = entry_signal_0
-                    self.active_strategy = 0
-                    self.take_profit_pct = self.strategies[0].take_profit_pct
-                    stop_losses[i] = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, entry_signal_0)
-
-                elif entry_signal_1 != 0:
-                    self.current_position = entry_signal_1
-                    self.entry_price = current_price
-                    positions[i] = entry_signal_1
-                    self.active_strategy = 1
-                    self.take_profit_pct = self.strategies[1].take_profit_pct
-                    stop_losses[i] = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, entry_signal_1)
-                else:
-                    positions[i] = 0
+                for i, strategy in enumerate(self.strategies):
+                    entry_signal = strategy.check_entry_automated(current_rows[i])
+                    if entry_signal != 0:
+                        self.current_position = entry_signal
+                        self.entry_price = current_price
+                        positions[i] = entry_signal
+                        self.active_strategy = i
+                        self.take_profit_pct = strategy.take_profit_pct
+                        stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[i], entry_signal)
+                        break
             else:
-                positions[i] = self.current_position
+                positions[i] = 0
 
             # Update trailing stop if in position
             if self.current_position != 0:
-                if self.active_strategy == 0:
-                    new_stop = self.strategies[0].calculate_dynamic_stop_loss(current_row_0, self.current_position)
-                else:
-                    new_stop = self.strategies[1].calculate_dynamic_stop_loss(current_row_1, self.current_position)
-
+                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:    
                     stop_losses[i] = min(new_stop, stop_losses[i-1])
-                
+
         # Add results to dataframe
         df['position'] = positions
         df['balance'] = self.balance_history

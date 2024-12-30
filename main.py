@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from strategy.optimize_parameters import Optimize_parameters
 from strategy.multistrategy_manager import Multistrategy_manager
-from config.config import SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2
+from config.config import SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
@@ -18,11 +18,15 @@ def fetch_data(client, symbol, interval, start_str):
     df = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
     return df
 
-def run_parameter_optimization_strategy():
+def run_parameter_optimization_strategy(mode):
+    print("\nFetching data...\n")
+
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
 
     data = fetch_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START)
+
+    print("Data fetched\n")
 
     # Initialize strategy
     strategy = Optimize_parameters(
@@ -30,42 +34,53 @@ def run_parameter_optimization_strategy():
         leverage=DEFAULT_PARAMS['leverage']
     )
 
-    # Initial parameters to start with
+    # Initial parameters to start with (change in config.py)
     initial_params = {
-        'bb_period': 20,
-        'bb_std': 2.5,
-        'adx_period': 20,
-        'adx_threshold': 25,
-        'rsi_period': 20,
-        'rsi_overbought': 70,
-        'rsi_oversold': 30,
-        'stop_loss_pct': 0.02,
-        'take_profit_pct': 0.04,
-        'atr_period': 20,
-        'atr_multiplier': 2.5,
-        'keltner_period': 20,
-        'keltner_atr_factor': 2.0,
-        'hma_period': 20,
-        'vwap_std': 2.0,
-        'macd_fast_period': 12,
-        'macd_slow_period': 26,
-        'macd_signal_period': 9,
-        'mfi_period': 14,
-        'obv_ma_period': 14,
+        'bb_period': OPTIMIZE_PARAMS['bb_period'],
+        'bb_std': OPTIMIZE_PARAMS['bb_std'],
+        'adx_period': OPTIMIZE_PARAMS['adx_period'],
+        'adx_threshold': OPTIMIZE_PARAMS['adx_threshold'],
+        'rsi_period': OPTIMIZE_PARAMS['rsi_period'],
+        'rsi_overbought': OPTIMIZE_PARAMS['rsi_overbought'],
+        'rsi_oversold': OPTIMIZE_PARAMS['rsi_oversold'],
+        'stop_loss_pct': OPTIMIZE_PARAMS['stop_loss_pct'],
+        'take_profit_pct': OPTIMIZE_PARAMS['take_profit_pct'],
+        'atr_period': OPTIMIZE_PARAMS['atr_period'],
+        'atr_multiplier': OPTIMIZE_PARAMS['atr_multiplier'],
+        'keltner_period': OPTIMIZE_PARAMS['keltner_period'],
+        'keltner_atr_factor': OPTIMIZE_PARAMS['keltner_atr_factor'],
+        'hma_period': OPTIMIZE_PARAMS['hma_period'],
+        'vwap_std': OPTIMIZE_PARAMS['vwap_std'],
+        'macd_fast_period': OPTIMIZE_PARAMS['macd_fast_period'],
+        'macd_slow_period': OPTIMIZE_PARAMS['macd_slow_period'],
+        'macd_signal_period': OPTIMIZE_PARAMS['macd_signal_period'],
+        'mfi_period': OPTIMIZE_PARAMS['mfi_period'],
+        'obv_ma_period': OPTIMIZE_PARAMS['obv_ma_period'],
     }
 
-    #strategy.optimize_step_by_step(data, initial_params)
-    print("\nOptimization done")
+    # Choose weather to optimize the parameters (1) or run the strategy, print the metrics and plot the results (2)
+    # Case 2 uses the DEFAULT_PARAMS from config.py
+    optimize = mode
+    match optimize:
+        case 1:
+            print("Starting optimization...")
+            strategy.optimize_step_by_step(data, initial_params)
+            print("\nOptimization done\n")
+        case 2:
+            print("Calculating metrics...")
+            strategy.run_strategy(data)
+            strategy.calculate_metrics(data)
+            strategy.plot_results(data)
+            print("\nMetrics calculated\n")
 
-    strategy.run_strategy(data, False)
-    strategy.calculate_metrics(data)
-    strategy.plot_results(data)
-
-def automated_optimization():
+def automated_optimization(trials):
+    print("\nFetching data...\n")
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
     global data
     data = fetch_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START)
+
+    print("Data fetched\n")
 
     # Run optimization
     storage = 'sqlite:///data/parameter_optimization.db'
@@ -79,11 +94,13 @@ def automated_optimization():
         pruner=optuna.pruners.MedianPruner()
     )
 
-    study.optimize(objective, n_trials=500)
+    print("Starting optimization...\n")
+
+    study.optimize(objective, n_trials=trials)
 
     # Print results
-    print("Best parameters: ", study.best_params)
-    print("Best value: ", study.best_value)
+    print("\nBest parameters: ", study.best_params)
+    print("Best value: ", study.best_value, "\n")
 
 def objective(trial):
     # Indicators to use
@@ -168,7 +185,7 @@ def objective(trial):
 
     # Run strategy
     strategy.reset_state()
-    strategy.run_strategy(data, True)
+    strategy.run_strategy(data)
 
     performance = strategy.get_strategy_performance(data)
     pnl = performance['total_pnl']
@@ -193,9 +210,13 @@ def objective(trial):
     return combined_metric
 
 def run_multistrategy_optimization():
+    print("\nFetching data...\n")
+
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
     data = fetch_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START)
+
+    print("Data fetched\n")
 
     # Initialize strategies
     manager = Multistrategy_manager()
@@ -247,19 +268,53 @@ def run_multistrategy_optimization():
         obv_ma_period=MULTISTRAT_PARAMS_2['obv_ma_period']
     )
 
+    manager.add_strategy(
+        bb_period=MULTISTRAT_PARAMS_3['bb_period'],
+        bb_std=MULTISTRAT_PARAMS_3['bb_std'],
+        adx_period=MULTISTRAT_PARAMS_3['adx_period'],
+        adx_threshold=MULTISTRAT_PARAMS_3['adx_threshold'],
+        rsi_period=MULTISTRAT_PARAMS_3['rsi_period'],
+        rsi_overbought=MULTISTRAT_PARAMS_3['rsi_overbought'],
+        rsi_oversold=MULTISTRAT_PARAMS_3['rsi_oversold'],
+        stop_loss_pct=MULTISTRAT_PARAMS_3['stop_loss_pct'],
+        take_profit_pct=MULTISTRAT_PARAMS_3['take_profit_pct'],
+        atr_period=MULTISTRAT_PARAMS_3['atr_period'],
+        atr_multiplier=MULTISTRAT_PARAMS_3['atr_multiplier'],
+        keltner_period=MULTISTRAT_PARAMS_3['keltner_period'],
+        keltner_atr_factor=MULTISTRAT_PARAMS_3['keltner_atr_factor'],
+        hma_period=MULTISTRAT_PARAMS_3['hma_period'],
+        vwap_std=MULTISTRAT_PARAMS_3['vwap_std'],
+        macd_fast_period=MULTISTRAT_PARAMS_3['macd_fast_period'],
+        macd_slow_period=MULTISTRAT_PARAMS_3['macd_slow_period'],
+        macd_signal_period=MULTISTRAT_PARAMS_3['macd_signal_period'],
+        mfi_period=MULTISTRAT_PARAMS_3['mfi_period'],
+        obv_ma_period=MULTISTRAT_PARAMS_3['obv_ma_period']
+    )
+
+    print("Strategies added\n")
+
     # Run strategies
+    print("Calculating metrics...")
     manager.run_strategies(data)
     manager.calculate_metrics()
+    manager.plot_results(data)
+    print("\nMetrics calculated\n")
 
-    
 
 if __name__ == '__main__':
-    # Choose strategy to run
-    strategy = 2
-    match strategy:
+    # Choose optimization to run
+    optimization = 3 # 1: Optimize a particular strategy, 2: Find the best strategy, 3: Combine and run multiple strategies together
+
+    # Choose mode for optimization 1
+    mode = 1 # 1: Run parameter optimization, 2: Print metrics and plot results 
+
+    # Choose how many trials to run for optimization 2
+    trials = 500
+    
+    match optimization:
         case 1:
-            run_parameter_optimization_strategy()   # Optimize a particular strategys parameters
+            run_parameter_optimization_strategy(mode)   # Optimize a particular strategys parameters
         case 2:
-            automated_optimization()                # Find the best strategy
+            automated_optimization(trials)              # Find the best strategy
         case 3:
-            run_multistrategy_optimization()        # Combine and run multiple strategies together
+            run_multistrategy_optimization()            # Combine and run multiple strategies together
