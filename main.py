@@ -119,67 +119,67 @@ def objective(trial):
 
     # Set common parameters
     strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.001, 0.1)
-    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.01, 0.15)
-    strategy.atr_period = trial.suggest_int('atr_period', 1, 50)
-    strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.1, 3.5)
+    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.001, 0.2)
+    strategy.atr_period = trial.suggest_int('atr_period', 1, 60)
+    strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.05, 4.0)
 
     # Conditional parameter definitions
     if use_bb:
-        strategy.bb_period = trial.suggest_int('bb_period', 1, 40)
-        strategy.bb_std = trial.suggest_float('bb_std', 0.1, 3.5)
+        strategy.bb_period = trial.suggest_int('bb_period', 1, 50)
+        strategy.bb_std = trial.suggest_float('bb_std', 0.05, 3.5)
     else:
         strategy.bb_period = None
         strategy.bb_std = None
     
     if use_adx:
-        strategy.adx_period = trial.suggest_int('adx_period', 1, 60)
-        strategy.adx_threshold = trial.suggest_int('adx_threshold', 1, 60)
+        strategy.adx_period = trial.suggest_int('adx_period', 1, 70)
+        strategy.adx_threshold = trial.suggest_int('adx_threshold', 1, 70)
     else:  
         strategy.adx_period = None
         strategy.adx_threshold = None
 
     if use_rsi:
-        strategy.rsi_period = trial.suggest_int('rsi_period', 1, 50)
-        strategy.rsi_overbought = trial.suggest_int('rsi_overbought', 55, 95)
-        strategy.rsi_oversold = trial.suggest_int('rsi_oversold', 5, 45)
+        strategy.rsi_period = trial.suggest_int('rsi_period', 1, 60)
+        strategy.rsi_overbought = trial.suggest_int('rsi_overbought', 50, 99)
+        strategy.rsi_oversold = trial.suggest_int('rsi_oversold', 1, 50)
     else:
         strategy.rsi_period = None
         strategy.rsi_overbought = None
         strategy.rsi_oversold = None
 
     if use_keltner:
-        strategy.keltner_period = trial.suggest_int('keltner_period', 1, 40)
-        strategy.keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.1, 3.5)
+        strategy.keltner_period = trial.suggest_int('keltner_period', 1, 60)
+        strategy.keltner_atr_factor = trial.suggest_float('keltner_atr_factor', 0.05, 4.0)
     else:
         strategy.keltner_period = None
         strategy.keltner_atr_factor = None
 
     if use_hma:
-        strategy.hma_period = trial.suggest_int('hma_period', 1, 35)
+        strategy.hma_period = trial.suggest_int('hma_period', 1, 60)
     else:
         strategy.hma_period = None
 
     if use_vwap:
-        strategy.vwap_std = trial.suggest_float('vwap_std', 0.1, 3.5)
+        strategy.vwap_std = trial.suggest_float('vwap_std', 0.05, 4.0)
     else:
         strategy.vwap_std = None
 
     if use_macd:
-        strategy.macd_fast_period = trial.suggest_int('macd_fast_period', 1, 50)
-        strategy.macd_slow_period = trial.suggest_int('macd_slow_period', 1, 50)
-        strategy.macd_signal_period = trial.suggest_int('macd_signal_period', 1, 50)
+        strategy.macd_fast_period = trial.suggest_int('macd_fast_period', 1, 60)
+        strategy.macd_slow_period = trial.suggest_int('macd_slow_period', 1, 60)
+        strategy.macd_signal_period = trial.suggest_int('macd_signal_period', 1, 60)
     else:
         strategy.macd_fast_period = None
         strategy.macd_slow_period = None
         strategy.macd_signal_period = None
 
     if use_mfi:
-        strategy.mfi_period = trial.suggest_int('mfi_period', 1, 40)
+        strategy.mfi_period = trial.suggest_int('mfi_period', 1, 60)
     else:
         strategy.mfi_period = None
 
     if use_obv:
-        strategy.obv_ma_period = trial.suggest_int('obv_ma_period', 1, 50)
+        strategy.obv_ma_period = trial.suggest_int('obv_ma_period', 1, 60)
     else:
         strategy.obv_ma_period = None
 
@@ -191,8 +191,8 @@ def objective(trial):
     pnl = performance['total_pnl']
     max_drawdown = performance['max_drawdown']
 
-    print("\nPnL: ", pnl)
-    print("Max Drawdown: ", max_drawdown)
+    print(f"\nPnL: {pnl:.2f}")
+    print(f"Max Drawdown: {max_drawdown:.2f}")
 
     # Calculate combined metric
     weight_pnl = 0.5
