@@ -17,7 +17,8 @@ class Multistrategy_manager(Optimize_multistrategy):
         self.peak_balance = DEFAULT_PARAMS['starting_balance']
         self.max_drawdown = 0
         self.balance_history = [DEFAULT_PARAMS['starting_balance']]
-        self.position_size = DEFAULT_PARAMS['starting_balance'] * DEFAULT_PARAMS['leverage'] * 0.8
+        self.leverage = DEFAULT_PARAMS['leverage']
+        self.position_size = DEFAULT_PARAMS['starting_balance'] * self.leverage * 0.8
 
     def add_strategy(self, bb_period, bb_std, adx_period, adx_threshold, 
                      rsi_period, rsi_overbought, rsi_oversold, stop_loss_pct, 
