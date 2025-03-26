@@ -1,4 +1,4 @@
-# Project Title
+# Python Trading Bot
 
 A cryptocurrency trading bot using technical indicators to trade on Binance futures market.
 
