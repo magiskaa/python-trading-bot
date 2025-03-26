@@ -1,6 +1,6 @@
 # Project Title
 
-A cryptocurrency trading bot using technical indicators to trade on Binance futures market. Now is used to optimize trading strategy.
+A cryptocurrency trading bot using technical indicators to trade on Binance futures market.
 
 ## Table of Contents
 
@@ -44,8 +44,6 @@ cp config/config.example.py config/config.py
 - Multiple strategy performance testing
 - Performance visualization
 - Risk management with take-profit and dynamic stop-loss
-
-Features not yet implemented
 - Futures trading with real money
 
 ## Configuration

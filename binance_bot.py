@@ -20,9 +20,11 @@ class BinanceBot(Multistrategy_manager):
     def account_balance(self, balance_client):
         try:
             balance = balance_client.balance()
+            # Change 'BNB' to for example 'USDT' if using USDT as collateral
             for i in balance:
                 if i['asset'] == 'BNB':
                     balance = float(i['balance'])
+            # Convert BNB to USDT
             bnb_price = float(balance_client.mark_price('BNBUSDT')['markPrice'])
             balance *= bnb_price
             return round(balance, 2)
@@ -37,7 +39,7 @@ class BinanceBot(Multistrategy_manager):
             if quantity < min_qty:
                 print(f"Order quantity {quantity} below minimum {min_qty}")
                 return None
-            
+            # Create order
             order = client.futures_create_order(
                 symbol=symbol,
                 side=side,
@@ -52,6 +54,7 @@ class BinanceBot(Multistrategy_manager):
 
     def place_stop_loss_order(self, client, symbol, side, quantity, stop_price, order_type=FUTURE_ORDER_TYPE_STOP_MARKET):
         try:
+            # Create stop loss order
             order = client.futures_create_order(
                 symbol=symbol,
                 side=side,
@@ -68,6 +71,7 @@ class BinanceBot(Multistrategy_manager):
             return None
         
     def cancel_stop_loss_order(self, client, symbol):
+        # Cancel stop loss order if exists
         if self.active_SL_order is not None:
             try:
                 client.futures_cancel_order(symbol=symbol, orderId=self.active_SL_order)
@@ -77,6 +81,7 @@ class BinanceBot(Multistrategy_manager):
                 print(f"Stop loss cancel error: {e}")
         
     def place_take_profit_order(self, client, symbol, side, quantity, price, order_type=FUTURE_ORDER_TYPE_TAKE_PROFIT_MARKET):
+        # Create take profit order
         try:
             order = client.futures_create_order(
                 symbol=symbol,
@@ -115,16 +120,19 @@ class BinanceBot(Multistrategy_manager):
     def run_strategies(self, df: pd.DataFrame, client, balance_client):
         print("Account balance: ", self.account_balance(balance_client))
 
+        # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
         for i, strategy in enumerate(self.strategies):
             strategy.last_df = df
             dfs[i] = strategy.calculate_indicators(df.copy())
 
+        # Get current price and rows for each strategy
         current_price = df['close'].iloc[-1]
         current_rows = [df.copy().iloc[-1]] * len(self.strategies)
         for j, strategy in enumerate(self.strategies):
             current_rows[j] = dfs[j].iloc[-1]
 
+        # Check if position has been closed
         if self.current_position != 0:
             positions_info = client.futures_position_information(symbol=SYMBOL)
             for pos in positions_info:
@@ -135,8 +143,10 @@ class BinanceBot(Multistrategy_manager):
                     self.active_strategy = None
                     client.futures_cancel_all_open_orders(symbol=SYMBOL)
 
+        # Calculate position size
         self.position_size = self.account_balance(balance_client) * self.leverage / 2
 
+        # Check if a new position should be opened
         if self.current_position == 0:
             for i, strategy in enumerate(self.strategies):
                 entry_signal = strategy.check_entry_automated(current_rows[i])
@@ -156,6 +166,7 @@ class BinanceBot(Multistrategy_manager):
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, quantity, self.entry_price * (1 - self.take_profit_pct))
                     break
 
+        # Create or update stop loss order
         if self.current_position != 0:
             new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
             if self.current_position == 1:
@@ -171,12 +182,14 @@ class BinanceBot(Multistrategy_manager):
 
 
 def fetch_historical_data(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=100):
+    # Fetch historical data for indicator calculation
     klines = client.futures_klines(symbol=symbol, interval=interval, limit=limit)
     df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
     df[['open','high','low','close','volume']] = df[['open','high','low','close','volume']].astype(float)
     return df
 
 def fetch_latest_price(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR):
+    # Fetch latest price
     klines = client.futures_klines(symbol=symbol, interval=interval, limit=1)
     df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
     df[['open','high','low','close','volume']] = df[['open','high','low','close','volume']].astype(float)
