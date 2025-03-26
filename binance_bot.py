@@ -1,5 +1,7 @@
 from binance.client import Client
 from binance.enums import *
+from binance.um_futures import UMFutures
+from binance.error import ClientError
 import time
 from datetime import datetime, timedelta
 import pandas as pd
@@ -15,8 +17,18 @@ class BinanceBot(Multistrategy_manager):
         self.position_size = 0
         self.stop_loss = 0
 
-    def account_balance(self, client):
-        return client.futures_account_balance()
+    def account_balance(self, balance_client):
+        try:
+            balance = balance_client.balance()
+            for i in balance:
+                if i['asset'] == 'BNB':
+                    balance = float(i['balance'])
+            bnb_price = float(balance_client.mark_price('BNBUSDT')['markPrice'])
+            balance *= bnb_price
+            return round(balance, 2)
+        except ClientError as e:
+            print(f"Balance error: {e}")
+            return None
     
     def create_order(self, client, side, quantity, symbol, order_type=FUTURE_ORDER_TYPE_MARKET):
         try:
@@ -32,9 +44,10 @@ class BinanceBot(Multistrategy_manager):
                 type=order_type,
                 quantity=quantity
             )
+            print(f"Order created: {symbol} {side} {order_type} {quantity}")
             return order
         except Exception as e:
-            print(e)
+            print(f"Order creation error: {e}")
             return None
 
     def place_stop_loss_order(self, client, symbol, side, quantity, stop_price, order_type=FUTURE_ORDER_TYPE_STOP_MARKET):
@@ -48,6 +61,7 @@ class BinanceBot(Multistrategy_manager):
                 closePosition=True
             )
             self.active_SL_order = order['orderId']
+            print(f"Stop loss order created: {symbol} {side} {order_type} {quantity} {stop_price}")
             return order
         except Exception as e:
             print(f"Stop loss error: {e}")
@@ -58,6 +72,7 @@ class BinanceBot(Multistrategy_manager):
             try:
                 client.futures_cancel_order(symbol=symbol, orderId=self.active_SL_order)
                 self.active_SL_order = None
+                print("Stop loss order cancelled")
             except Exception as e:
                 print(f"Stop loss cancel error: {e}")
         
@@ -72,6 +87,7 @@ class BinanceBot(Multistrategy_manager):
                 closePosition=True
             )
             self.active_TP_order = order['orderId']
+            print(f"Take profit order created: {symbol} {side} {order_type} {quantity} {price}")
             return order
         except Exception as e:
             print(f"Take profit error: {e}")
@@ -89,13 +105,16 @@ class BinanceBot(Multistrategy_manager):
             
             # Round to valid precision
             quantity = round(quantity, precision)
-            
+
+            print(f"Position quantity: {quantity}")
             return quantity
         except Exception as e:
             print(f"Quantity calculation error: {e}")
             return None
 
-    def run_strategies(self, df: pd.DataFrame, client):
+    def run_strategies(self, df: pd.DataFrame, client, balance_client):
+        print("Account balance: ", self.account_balance(balance_client))
+
         dfs = [None] * len(self.strategies)
         for i, strategy in enumerate(self.strategies):
             strategy.last_df = df
@@ -116,7 +135,7 @@ class BinanceBot(Multistrategy_manager):
                     self.active_strategy = None
                     client.futures_cancel_all_open_orders(symbol=SYMBOL)
 
-        self.position_size = self.account_balance(client)[0]['balance'] * self.leverage / 2
+        self.position_size = self.account_balance(balance_client) * self.leverage / 2
 
         if self.current_position == 0:
             for i, strategy in enumerate(self.strategies):
@@ -170,7 +189,8 @@ def wait_until_next_hour():
 
 def main():
     try:
-        client = Client(API_KEY_FUTURES, API_SECRET_FUTURES)
+        client = Client(API_KEY_FUTURES, API_SECRET_FUTURES, tld='com')
+        balance_client = UMFutures(API_KEY_FUTURES, API_SECRET_FUTURES)
         bot = BinanceBot()
 
         # Test connection first
@@ -256,7 +276,9 @@ def main():
                 if latest_df is None or len(latest_df) == 0:
                     raise Exception("Failed to fetch latest price")
                 df = pd.concat([df.iloc[1:], latest_df])
-                bot.run_strategies(df, client)
+                print("Running strategy")
+                bot.run_strategies(df, client, balance_client)
+                print("Strategy run, waiting for next hour")
                 wait_until_next_hour()
             except Exception as e:
                 print(f"Error in main loop: {e}")
