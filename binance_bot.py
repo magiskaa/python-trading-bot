@@ -118,7 +118,8 @@ class BinanceBot(Multistrategy_manager):
             return None
 
     def run_strategies(self, df: pd.DataFrame, client, balance_client):
-        print("Account balance: ", self.account_balance(balance_client))
+        acc_bal = self.account_balance(balance_client)
+        print(f"Account balance: ${acc_bal}")
 
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
@@ -142,9 +143,10 @@ class BinanceBot(Multistrategy_manager):
                     self.active_TP_order = None
                     self.active_strategy = None
                     client.futures_cancel_all_open_orders(symbol=SYMBOL)
+                    print("Position has been closed and all orders cancelled")
 
         # Calculate position size
-        self.position_size = self.account_balance(balance_client) * self.leverage / 2
+        self.position_size = self.account_balance(balance_client) * self.leverage * 0.9
 
         # Check if a new position should be opened
         if self.current_position == 0:
@@ -158,12 +160,12 @@ class BinanceBot(Multistrategy_manager):
                     self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], entry_signal)
                     if self.current_position == 1:
                         quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                        self.create_order(client, SIDE_BUY, self.position_size, SYMBOL)
-                        self.place_take_profit_order(client, SYMBOL, SIDE_SELL, quantity, self.entry_price * (1 + self.take_profit_pct))
+                        self.create_order(client, SIDE_BUY, quantity, SYMBOL)
+                        self.place_take_profit_order(client, SYMBOL, SIDE_SELL, quantity, round(self.entry_price * (1 + self.take_profit_pct), 1))
                     elif self.current_position == -1:
                         quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                        self.create_order(client, SIDE_SELL, self.position_size, SYMBOL)
-                        self.place_take_profit_order(client, SYMBOL, SIDE_BUY, quantity, self.entry_price * (1 - self.take_profit_pct))
+                        self.create_order(client, SIDE_SELL, quantity, SYMBOL)
+                        self.place_take_profit_order(client, SYMBOL, SIDE_BUY, quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                     break
 
         # Create or update stop loss order
@@ -173,12 +175,12 @@ class BinanceBot(Multistrategy_manager):
                 self.stop_loss = max(self.stop_loss, new_stop)
                 self.cancel_stop_loss_order(client, SYMBOL)
                 quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, quantity, self.stop_loss)
+                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, quantity, round(self.stop_loss, 1))
             else:
                 self.stop_loss = min(self.stop_loss, new_stop)
                 self.cancel_stop_loss_order(client, SYMBOL)
                 quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, quantity, self.stop_loss)
+                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, quantity, round(self.stop_loss, 1))
 
 
 def fetch_historical_data(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=100):
@@ -289,9 +291,9 @@ def main():
                 if latest_df is None or len(latest_df) == 0:
                     raise Exception("Failed to fetch latest price")
                 df = pd.concat([df.iloc[1:], latest_df])
-                print("Running strategy")
+                print("Running strategy @", (datetime.now() + timedelta(hours=2)))
                 bot.run_strategies(df, client, balance_client)
-                print("Strategy run, waiting for next hour")
+                print("Strategy run, waiting for next hour\n")
                 wait_until_next_hour()
             except Exception as e:
                 print(f"Error in main loop: {e}")
