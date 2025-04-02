@@ -278,6 +278,89 @@ class Strategy_base:
             return -1  # Sell signal
         
         return 0  # Hold
+
+    def check_entry_automated_print(self, row: pd.Series) -> int:
+        """Entry conditions check for automated_optimization"""
+        buy_signals = []
+        sell_signals = []
+
+        if self.bb_period is not None:
+            bb_condition_long = row['close'] < row['bb_lower']
+            buy_signals.append(bb_condition_long)
+            bb_condition_short = row['close'] > row['bb_upper']
+            sell_signals.append(bb_condition_short)
+            print(f"bb_l: {row['close']} < {row['bb_lower']} {bb_condition_long}")
+            print(f"bb_s: {row['close']} > {row['bb_upper']} {bb_condition_short}")
+
+        if self.adx_period is not None:
+            adx_condition = row['adx'] > self.adx_threshold
+            buy_signals.append(adx_condition)
+            sell_signals.append(adx_condition)            
+            print(f"adx: {row['adx']} > {self.adx_threshold} {adx_condition}")
+        
+        if self.rsi_period is not None:
+            rsi_condition_long = row['rsi'] < self.rsi_oversold
+            buy_signals.append(rsi_condition_long)
+            rsi_condition_short = row['rsi'] > self.rsi_overbought
+            sell_signals.append(rsi_condition_short)
+            print(f"rsi_l: {row['rsi']} < {self.rsi_oversold} {rsi_condition_long}")
+            print(f"rsi_s: {row['rsi']} > {self.rsi_overbought} {rsi_condition_short}")
+            
+        if self.keltner_period is not None:
+            keltner_condition_long = row['close'] < row['kc_lower']
+            buy_signals.append(keltner_condition_long)
+            keltner_condition_short = row['close'] > row['kc_upper']
+            sell_signals.append(keltner_condition_short)
+            print(f"kc_l: {row['close']} < {row['kc_lower']} {keltner_condition_long}")
+            print(f"kc_s: {row['close']} > {row['kc_upper']} {keltner_condition_short}")
+
+        if self.hma_period is not None:
+            hma_trend_long = row['close'] > row['hma']
+            buy_signals.append(hma_trend_long)
+            hma_trend_short = row['close'] < row['hma']
+            sell_signals.append(hma_trend_short)
+            print(f"hma_l: {row['close']} > {row['hma']} {hma_trend_long}")
+            print(f"hma_s: {row['close']} < {row['hma']} {hma_trend_short}")
+
+        if self.vwap_std is not None:
+            vwap_condition_long = row['close'] < row['vwap_lower']
+            buy_signals.append(vwap_condition_long)
+            vwap_condition_short = row['close'] > row['vwap_upper']
+            sell_signals.append(vwap_condition_short)
+            print(f"vwap_l: {row['close']} < {row['vwap_lower']} {vwap_condition_long}")
+            print(f"vwap_s: {row['close']} > {row['vwap_upper']} {vwap_condition_short}")
+
+        if self.macd_fast_period is not None:
+            macd_condition_long = row['macd_line'] > row['macd_signal']
+            buy_signals.append(macd_condition_long)
+            macd_condition_short = row['macd_line'] < row['macd_signal']
+            sell_signals.append(macd_condition_short)
+            print(f"macd_l: {row['macd_line']} > {row['macd_signal']} {macd_condition_long}")
+            print(f"macd_s: {row['macd_line']} < {row['macd_signal']} {macd_condition_short}")
+
+        if self.mfi_period is not None:
+            mfi_condition_long = row['mfi'] < 20
+            buy_signals.append(mfi_condition_long)
+            mfi_condition_short = row['mfi'] > 80
+            sell_signals.append(mfi_condition_short)
+            print(f"mfi_l: {row['mfi']} < {20} {mfi_condition_long}")
+            print(f"mfi_s: {row['mfi']} > {80} {mfi_condition_short}")
+
+        if self.obv_ma_period is not None:
+            obv_ma_condition_long = row['obv'] > row['obv_ma']
+            buy_signals.append(obv_ma_condition_long)
+            obv_ma_condition_short = row['obv'] < row['obv_ma']
+            sell_signals.append(obv_ma_condition_short)
+            print(f"obv_l: {row['obv']} < {row['obv_ma']} {obv_ma_condition_long}")
+            print(f"obv_s: {row['obv']} > {row['obv_ma']} {obv_ma_condition_short}")
+
+        if all(buy_signals):
+            return 1  # Buy signal
+        
+        elif all(sell_signals):
+            return -1  # Sell signal
+        
+        return 0  # Hold
   
     def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
@@ -287,6 +370,27 @@ class Strategy_base:
             return row['close'] * (1 + max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
         return 0
 
+    def stop_loss_or_take_profit_hit(self, exit_price, type):
+        # Calculate PnL
+        pnl = self.calculate_pnl(exit_price)
+        self.pnl.append(pnl)
+        self.current_balance += pnl
+
+        # Update peak balance and drawdown
+        self.peak_balance = max(self.peak_balance, self.current_balance)
+        current_drawdown = (self.peak_balance - self.current_balance) / self.peak_balance
+        self.max_drawdown = max(self.max_drawdown, current_drawdown)
+
+        # Record trade
+        self.trades.append({
+            'entry_price': self.entry_price,
+            'exit_price': exit_price,
+            'pnl': pnl,
+            'position': self.current_position,
+            'balance_after': self.current_balance,
+            'exit_type': type
+        })
+        
     def calculate_pnl(self, exit_price: float) -> float:
         """Calculate PnL for a closed trade"""
         price_change = (exit_price - self.entry_price) / self.entry_price

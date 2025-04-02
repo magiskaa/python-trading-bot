@@ -77,56 +77,51 @@ class Optimize_parameters(Strategy_base):
         
         for i in range(len(df)):
             current_price = df['close'].iloc[i]
+            lowest_price = df['low'].iloc[i]
+            highest_price = df['high'].iloc[i]
             current_row = df.iloc[i]
             
             # Check exit conditions first
             if self.current_position != 0:
                 # Check stop loss and take profit
                 stop_hit = (
-                    (self.current_position == 1 and current_price < stop_losses[i-1]) or
-                    (self.current_position == -1 and current_price > stop_losses[i-1])
+                    (self.current_position == 1 and lowest_price < stop_losses[i-1]) or
+                    (self.current_position == -1 and highest_price > stop_losses[i-1])
                 )
-                
                 take_profit_hit = (
-                    (self.current_position == 1 and 
-                    (current_price - self.entry_price) / self.entry_price > self.take_profit_pct) or
-                    (self.current_position == -1 and 
-                    (self.entry_price - current_price) / self.entry_price > self.take_profit_pct)
+                    (self.current_position == 1 and (highest_price - self.entry_price) / self.entry_price > self.take_profit_pct) or
+                    (self.current_position == -1 and (self.entry_price - lowest_price) / self.entry_price > self.take_profit_pct)
                 )
                 
-                if stop_hit or take_profit_hit:
-                    # Calculate PnL
-                    pnl = self.calculate_pnl(current_price)
-                    self.pnl.append(pnl)
-                    self.current_balance += pnl
-                    
-                    # Update peak balance and drawdown
-                    self.peak_balance = max(self.peak_balance, self.current_balance)
-                    current_drawdown = (self.peak_balance - self.current_balance) / self.peak_balance
-                    self.max_drawdown = max(self.max_drawdown, current_drawdown)
-                    
-                    # Record trade
-                    self.trades.append({
-                        'entry_price': self.entry_price,
-                        'exit_price': current_price,
-                        'pnl': pnl,
-                        'position': self.current_position,
-                        'balance_after': self.current_balance,
-                        'exit_type': 'stop_loss' if stop_hit else 'take_profit'
-                    })
-                    
+                if stop_hit:
+                    self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
                     # Print trade details (for debugging)
                     if isDebug:
-                        print("enp:", self.trades[counter]['entry_price'])
+                        print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
+                        print("SL:", stop_losses[i-1])
                         print("pnl:", self.trades[counter]['pnl'])
                         print("pos:", self.trades[counter]['position'])
                         print("bal:", self.trades[counter]['balance_after'])
                         print("ext:", self.trades[counter]['exit_type'])
                         print("pos_s:", self.position_size)
                         counter += 1
-
                     # Reset position
+                    self.current_position = 0
+                    positions[i] = 0
+                elif take_profit_hit:
+                    self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
+                    # Print trade details (for debugging)
+                    if isDebug:
+                        print("\nenp:", self.trades[counter]['entry_price'])
+                        print("exp:", self.trades[counter]['exit_price'])
+                        print("SL:", stop_losses[i-1])
+                        print("pnl:", self.trades[counter]['pnl'])
+                        print("pos:", self.trades[counter]['position'])
+                        print("bal:", self.trades[counter]['balance_after'])
+                        print("ext:", self.trades[counter]['exit_type'])
+                        print("pos_s:", self.position_size)
+                        counter += 1
                     self.current_position = 0
                     positions[i] = 0
                 else:
@@ -138,22 +133,24 @@ class Optimize_parameters(Strategy_base):
             self.balance_history[i] = self.current_balance
 
             # Update position size
-            self.position_size = self.current_balance * self.leverage * 0.8
-            
+            if self.position_size < 50000:
+                self.position_size = self.current_balance * self.leverage * 0.9
+            else:
+                self.position_size = 50000
+
             # Check entry conditions if not in position
             if self.current_position == 0:
                 entry_signal = self.check_entry_automated(current_row)
-                
                 if entry_signal != 0:
                     self.current_position = entry_signal
                     self.entry_price = current_price
                     positions[i] = entry_signal
-                    
                     # Set initial stop loss
                     stop_losses[i] = self.calculate_dynamic_stop_loss(
                         current_row, 
                         entry_signal
                     )
+                    stop_losses[i-1] = stop_losses[i]
                 else:
                     positions[i] = 0
             else:
@@ -161,10 +158,7 @@ class Optimize_parameters(Strategy_base):
                     
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.calculate_dynamic_stop_loss(
-                    current_row, 
-                    self.current_position
-                )
+                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

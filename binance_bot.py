@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from strategy.multistrategy_manager import Multistrategy_manager
-from config.config import API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, DEFAULT_PARAMS
+from config.config import API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, DEFAULT_PARAMS
 
 class BinanceBot(Multistrategy_manager):
     def __init__(self):
@@ -16,6 +16,7 @@ class BinanceBot(Multistrategy_manager):
         self.active_TP_order = None
         self.position_size = 0
         self.stop_loss = 0
+        self.quantity = 0
 
     def account_balance(self, balance_client):
         try:
@@ -129,29 +130,35 @@ class BinanceBot(Multistrategy_manager):
 
         # Get current price and rows for each strategy
         current_price = df['close'].iloc[-1]
+        print(f"BTC price: ${current_price}\n")
         current_rows = [df.copy().iloc[-1]] * len(self.strategies)
         for j, strategy in enumerate(self.strategies):
             current_rows[j] = dfs[j].iloc[-1]
 
         # Check if position has been closed
         if self.current_position != 0:
-            positions_info = client.futures_position_information(symbol=SYMBOL)
-            for pos in positions_info:
-                if pos['symbol'] == SYMBOL and float(pos['positionAmt']) == 0:
-                    self.current_position = 0
-                    self.active_SL_order = None
-                    self.active_TP_order = None
-                    self.active_strategy = None
-                    client.futures_cancel_all_open_orders(symbol=SYMBOL)
-                    print("Position has been closed and all orders cancelled")
+            sl_hit = client.get_order(SYMBOL, orderId=self.active_SL_order)
+            tp_hit = client.get_order(SYMBOL, orderId=self.active_TP_order)
+            if sl_hit["status"] == "FILLED" or tp_hit["status"] == "FILLED":
+                self.current_position = 0
+                self.quantity = 0
+                self.active_SL_order = None
+                self.active_TP_order = None
+                self.active_strategy = None
+                client.futures_cancel_all_open_orders(symbol=SYMBOL)
+                print("Position has been closed and all orders cancelled")
 
         # Calculate position size
-        self.position_size = self.account_balance(balance_client) * self.leverage * 0.9
+        if self.position_size < 50000:
+            self.position_size = self.account_balance(balance_client) * self.leverage * 0.9
+        else:
+            self.position_size = 50000
 
         # Check if a new position should be opened
         if self.current_position == 0:
             for i, strategy in enumerate(self.strategies):
-                entry_signal = strategy.check_entry_automated(current_rows[i])
+                entry_signal = strategy.check_entry_automated_print(current_rows[i])
+                print(f"Entry signal: {entry_signal}\n")
                 if entry_signal != 0:
                     self.current_position = entry_signal
                     self.entry_price = current_price
@@ -159,31 +166,27 @@ class BinanceBot(Multistrategy_manager):
                     self.take_profit_pct = strategy.take_profit_pct
                     self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], entry_signal)
                     if self.current_position == 1:
-                        quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                        self.create_order(client, SIDE_BUY, quantity, SYMBOL)
-                        self.place_take_profit_order(client, SYMBOL, SIDE_SELL, quantity, round(self.entry_price * (1 + self.take_profit_pct), 1))
+                        self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
+                        self.create_order(client, SIDE_BUY, self.quantity, SYMBOL)
+                        self.place_take_profit_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.entry_price * (1 + self.take_profit_pct), 1))
                     elif self.current_position == -1:
-                        quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                        self.create_order(client, SIDE_SELL, quantity, SYMBOL)
-                        self.place_take_profit_order(client, SYMBOL, SIDE_BUY, quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
+                        self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
+                        self.create_order(client, SIDE_SELL, self.quantity, SYMBOL)
+                        self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                     break
 
         # Create or update stop loss order
         if self.current_position != 0:
             new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
-            if self.current_position == 1:
-                self.stop_loss = max(self.stop_loss, new_stop)
+            if self.current_position == 1 and new_stop > self.stop_loss:
                 self.cancel_stop_loss_order(client, SYMBOL)
-                quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, quantity, round(self.stop_loss, 1))
-            else:
-                self.stop_loss = min(self.stop_loss, new_stop)
+                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.stop_loss, 1))
+            elif self.current_position == -1 and new_stop < self.stop_loss:
                 self.cancel_stop_loss_order(client, SYMBOL)
-                quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, quantity, round(self.stop_loss, 1))
+                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
 
 
-def fetch_historical_data(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=100):
+def fetch_historical_data(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=500):
     # Fetch historical data for indicator calculation
     klines = client.futures_klines(symbol=symbol, interval=interval, limit=limit)
     df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
@@ -281,7 +284,7 @@ def main():
         client.futures_change_leverage(symbol=SYMBOL, leverage=DEFAULT_PARAMS['leverage'])
 
         df = fetch_historical_data(client, SYMBOL)
-        if df is None or len(df) < 100:
+        if df is None or len(df) < 500:
             raise Exception("Failed to fetch initial data")
 
         while True:

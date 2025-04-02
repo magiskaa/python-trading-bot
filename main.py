@@ -190,23 +190,25 @@ def objective(trial):
     performance = strategy.get_strategy_performance(data)
     pnl = performance['total_pnl']
     max_drawdown = performance['max_drawdown']
+    win_rate = performance['win_rate']
 
     print(f"\nPnL: {pnl:.2f}")
     print(f"Max Drawdown: {max_drawdown:.2f}")
+    print(f"Win Rate: {win_rate:.2f}")
 
-    # Calculate combined metric
-    weight_pnl = 0.5
-    weight_mdd = 0.5
+    if pnl <= 0 or max_drawdown >= 90: 
+        return 0
 
-    # Logarithmic normalization for pnl
-    normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range
-    
-    normalized_mdd = 1 - max_drawdown / 100
+    normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
+    normalized_mdd = max(0, 1 - (max_drawdown / 100))
+    normalized_wr = win_rate / 100
 
     combined_metric = (
-        weight_pnl * normalized_pnl +
-        weight_mdd * normalized_mdd)
-    
+        0.5 * normalized_pnl +
+        0.4 * normalized_mdd +
+        0.1 * normalized_wr
+    )
+
     return combined_metric
 
 def run_multistrategy_optimization():
