@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from strategy.multistrategy_manager import Multistrategy_manager
-from config.config import API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, DEFAULT_PARAMS
+from config.config import (API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, 
+                           MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, 
+                           DEFAULT_PARAMS, BACKTEST_START)
 
 class BinanceBot(Multistrategy_manager):
     def __init__(self):
@@ -130,7 +132,7 @@ class BinanceBot(Multistrategy_manager):
 
         # Get current price and rows for each strategy
         current_price = df['close'].iloc[-1]
-        print(f"BTC price: ${current_price}\n")
+        print(f"{SYMBOL} price: ${current_price}\n")
         current_rows = [df.copy().iloc[-1]] * len(self.strategies)
         for j, strategy in enumerate(self.strategies):
             current_rows[j] = dfs[j].iloc[-1]
@@ -185,20 +187,36 @@ class BinanceBot(Multistrategy_manager):
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
 
+def fetch_and_store_data(client, symbol, interval, start_str, filename):
+    # Try loading existing data
+    try:
+        existing_df = pd.read_csv(filename, index_col='timestamp', parse_dates=True)
+        last_saved = existing_df.index[-1]
+    except FileNotFoundError:
+        existing_df = pd.DataFrame()
+        last_saved = None
 
-def fetch_historical_data(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR, limit=500):
-    # Fetch historical data for indicator calculation
-    klines = client.futures_klines(symbol=symbol, interval=interval, limit=limit)
-    df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
-    df[['open','high','low','close','volume']] = df[['open','high','low','close','volume']].astype(float)
-    return df
+    # Fetch new data starting from the last stored timestamp
+    if last_saved:
+        klines = client.get_historical_klines(symbol, interval, str(last_saved))
+    else:
+        klines = client.get_historical_klines(symbol, interval, start_str)
 
-def fetch_latest_price(client, symbol, interval=Client.KLINE_INTERVAL_1HOUR):
-    # Fetch latest price
-    klines = client.futures_klines(symbol=symbol, interval=interval, limit=1)
-    df = pd.DataFrame(klines, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_av', 'trades', 'tb_base_av', 'tb_quote_av', 'ignore'])
-    df[['open','high','low','close','volume']] = df[['open','high','low','close','volume']].astype(float)
-    return df
+    new_df = pd.DataFrame(klines, columns=[
+        'timestamp','open','high','low','close','volume','close_time',
+        'quote_asset_volume','number_of_trades','taker_buy_base_asset_volume',
+        'taker_buy_quote_asset_volume','ignore'
+    ])
+    new_df['timestamp'] = pd.to_datetime(new_df['timestamp'], unit='ms')
+    new_df.set_index('timestamp', inplace=True)
+    new_df = new_df[['open','high','low','close','volume']].astype(float)
+
+    # Merge new data with existing data and store
+    combined_df = pd.concat([existing_df, new_df])
+    combined_df = combined_df[~combined_df.index.duplicated(keep='last')].sort_index()
+    combined_df.to_csv(filename)
+
+    return combined_df
 
 def wait_until_next_hour():
     next_hour = (datetime.now() + timedelta(hours=1)).replace(minute=0, second=5, microsecond=0)
@@ -280,21 +298,82 @@ def main():
             mfi_period=MULTISTRAT_PARAMS_3['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_3['obv_ma_period']
         )
+        bot.add_strategy(
+            bb_period=MULTISTRAT_PARAMS_4['bb_period'],
+            bb_std=MULTISTRAT_PARAMS_4['bb_std'],
+            adx_period=MULTISTRAT_PARAMS_4['adx_period'],
+            adx_threshold=MULTISTRAT_PARAMS_4['adx_threshold'],
+            rsi_period=MULTISTRAT_PARAMS_4['rsi_period'],
+            rsi_overbought=MULTISTRAT_PARAMS_4['rsi_overbought'],
+            rsi_oversold=MULTISTRAT_PARAMS_4['rsi_oversold'],
+            stop_loss_pct=MULTISTRAT_PARAMS_4['stop_loss_pct'],
+            take_profit_pct=MULTISTRAT_PARAMS_4['take_profit_pct'],
+            atr_period=MULTISTRAT_PARAMS_4['atr_period'],
+            atr_multiplier=MULTISTRAT_PARAMS_4['atr_multiplier'],
+            keltner_period=MULTISTRAT_PARAMS_4['keltner_period'],
+            keltner_atr_factor=MULTISTRAT_PARAMS_4['keltner_atr_factor'],
+            hma_period=MULTISTRAT_PARAMS_4['hma_period'],
+            vwap_std=MULTISTRAT_PARAMS_4['vwap_std'],
+            macd_fast_period=MULTISTRAT_PARAMS_4['macd_fast_period'],
+            macd_slow_period=MULTISTRAT_PARAMS_4['macd_slow_period'],
+            macd_signal_period=MULTISTRAT_PARAMS_4['macd_signal_period'],
+            mfi_period=MULTISTRAT_PARAMS_4['mfi_period'],
+            obv_ma_period=MULTISTRAT_PARAMS_4['obv_ma_period']
+        )
+        bot.add_strategy(
+            bb_period=MULTISTRAT_PARAMS_5['bb_period'],
+            bb_std=MULTISTRAT_PARAMS_5['bb_std'],
+            adx_period=MULTISTRAT_PARAMS_5['adx_period'],
+            adx_threshold=MULTISTRAT_PARAMS_5['adx_threshold'],
+            rsi_period=MULTISTRAT_PARAMS_5['rsi_period'],
+            rsi_overbought=MULTISTRAT_PARAMS_5['rsi_overbought'],
+            rsi_oversold=MULTISTRAT_PARAMS_5['rsi_oversold'],
+            stop_loss_pct=MULTISTRAT_PARAMS_5['stop_loss_pct'],
+            take_profit_pct=MULTISTRAT_PARAMS_5['take_profit_pct'],
+            atr_period=MULTISTRAT_PARAMS_5['atr_period'],
+            atr_multiplier=MULTISTRAT_PARAMS_5['atr_multiplier'],
+            keltner_period=MULTISTRAT_PARAMS_5['keltner_period'],
+            keltner_atr_factor=MULTISTRAT_PARAMS_5['keltner_atr_factor'],
+            hma_period=MULTISTRAT_PARAMS_5['hma_period'],
+            vwap_std=MULTISTRAT_PARAMS_5['vwap_std'],
+            macd_fast_period=MULTISTRAT_PARAMS_5['macd_fast_period'],
+            macd_slow_period=MULTISTRAT_PARAMS_5['macd_slow_period'],
+            macd_signal_period=MULTISTRAT_PARAMS_5['macd_signal_period'],
+            mfi_period=MULTISTRAT_PARAMS_5['mfi_period'],
+            obv_ma_period=MULTISTRAT_PARAMS_5['obv_ma_period']
+        )
+        bot.add_strategy(
+            bb_period=MULTISTRAT_PARAMS_6['bb_period'],
+            bb_std=MULTISTRAT_PARAMS_6['bb_std'],
+            adx_period=MULTISTRAT_PARAMS_6['adx_period'],
+            adx_threshold=MULTISTRAT_PARAMS_6['adx_threshold'],
+            rsi_period=MULTISTRAT_PARAMS_6['rsi_period'],
+            rsi_overbought=MULTISTRAT_PARAMS_6['rsi_overbought'],
+            rsi_oversold=MULTISTRAT_PARAMS_6['rsi_oversold'],
+            stop_loss_pct=MULTISTRAT_PARAMS_6['stop_loss_pct'],
+            take_profit_pct=MULTISTRAT_PARAMS_6['take_profit_pct'],
+            atr_period=MULTISTRAT_PARAMS_6['atr_period'],
+            atr_multiplier=MULTISTRAT_PARAMS_6['atr_multiplier'],
+            keltner_period=MULTISTRAT_PARAMS_6['keltner_period'],
+            keltner_atr_factor=MULTISTRAT_PARAMS_6['keltner_atr_factor'],
+            hma_period=MULTISTRAT_PARAMS_6['hma_period'],
+            vwap_std=MULTISTRAT_PARAMS_6['vwap_std'],
+            macd_fast_period=MULTISTRAT_PARAMS_6['macd_fast_period'],
+            macd_slow_period=MULTISTRAT_PARAMS_6['macd_slow_period'],
+            macd_signal_period=MULTISTRAT_PARAMS_6['macd_signal_period'],
+            mfi_period=MULTISTRAT_PARAMS_6['mfi_period'],
+            obv_ma_period=MULTISTRAT_PARAMS_6['obv_ma_period']
+        )
 
         client.futures_change_leverage(symbol=SYMBOL, leverage=DEFAULT_PARAMS['leverage'])
 
-        df = fetch_historical_data(client, SYMBOL)
-        if df is None or len(df) < 500:
-            raise Exception("Failed to fetch initial data")
+        df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
 
         while True:
             try:
                 time.sleep(1)
-                latest_df = fetch_latest_price(client, SYMBOL)
-                if latest_df is None or len(latest_df) == 0:
-                    raise Exception("Failed to fetch latest price")
-                df = pd.concat([df.iloc[1:], latest_df])
-                print("Running strategy @", (datetime.now() + timedelta(hours=2)))
+                df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
+                print("Running strategy @", (datetime.now() + timedelta(hours=3)))
                 bot.run_strategies(df, client, balance_client)
                 print("Strategy run, waiting for next hour\n")
                 wait_until_next_hour()

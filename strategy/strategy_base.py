@@ -376,6 +376,12 @@ class Strategy_base:
         self.pnl.append(pnl)
         self.current_balance += pnl
 
+        # Enforce margin call
+        if self.current_balance <= 0:
+            pnl_adjustment = -self.current_balance
+            self.current_balance = 0
+            pnl -= pnl_adjustment
+
         # Update peak balance and drawdown
         self.peak_balance = max(self.peak_balance, self.current_balance)
         current_drawdown = (self.peak_balance - self.current_balance) / self.peak_balance
@@ -607,9 +613,10 @@ class Strategy_base:
 
                             print(
                                 f"Value: {value}, PnL: ${result['pnl']:.2f}, "
-                                f"MDD: {result['mdd']*100:.2f}%, Sharpe: {result['sharpe_ratio']:.2f}, "
+                                f"MDD: {result['mdd']:.2f}%, "
                                 f"Combined Metric: {combined_metric:.6f}, "
-                                f"Trades: {result['num_trades']}"
+                                f"Trades: {result['num_trades']}, "
+                                f"Win rate: {result['win_rate']:.2f}%"
                             )
                         except Exception as e:
                             print(f"Error testing value {value}: {str(e)}")
@@ -638,37 +645,25 @@ class Strategy_base:
         strategy = self.__class__(**test_params)
         strategy.reset_state()
         strategy.run_strategy(data)
+        
+        performance = strategy.get_strategy_performance(data)
+        pnl = performance['total_pnl']
+        max_drawdown = performance['max_drawdown']
+        win_rate = performance['win_rate']
+        num_trades = performance['num_trades']
 
-        if len(strategy.trades) < 5:
+        if pnl <= 0 or max_drawdown >= 90 or win_rate > 99.9 or num_trades < 150: 
             return None
 
-        # Calculate performance metrics
-        pnl = sum(strategy.pnl)
-        mdd = strategy.max_drawdown
+        normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
+        normalized_mdd = max(0, 1 - (max_drawdown / 100))
+        normalized_wr = win_rate / 100
 
-        if pnl <= 0:
-            return None
-
-        returns = pd.Series(strategy.pnl)
-        sharpe_ratio = (
-            np.sqrt(252) * (returns.mean() / returns.std())
-            if len(returns) > 1 and returns.std() != 0 else 0
-        )
-
-        # Weight of each metric (sum of weights = 1)
-        weight_pnl = 0.5
-        weight_mdd = 0.5
-        weight_sharpe = 0.05
-
-        normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)  # Adjust 10000 based on expected PnL range
-        normalized_mdd = 1 - mdd
-        normalized_sharpe = (min(1.0, sharpe_ratio / 2.0) if sharpe_ratio > 0 else max(-1.0, sharpe_ratio / 2.0))
-
-        # Delete comment from below if you want to include sharpe ratio in the metric
         combined_metric = (
-            weight_pnl * normalized_pnl +
-            weight_mdd * normalized_mdd 
-            #+ weight_sharpe * normalized_sharpe
+            0.4 * normalized_pnl +
+            0.5 * normalized_mdd +
+            0.05 * normalized_wr +
+            0.05 * (num_trades / 1000)
         )
 
         if combined_metric <= 0:
@@ -676,8 +671,8 @@ class Strategy_base:
 
         return {
             'pnl': pnl,
-            'mdd': mdd,
-            'sharpe_ratio': sharpe_ratio,
+            'mdd': max_drawdown,
             'combined_metric': combined_metric,
-            'num_trades': len(strategy.trades)
+            'num_trades': num_trades,
+            'win_rate': win_rate
         }
