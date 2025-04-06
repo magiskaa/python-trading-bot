@@ -58,12 +58,10 @@ class Optimize_parameters(Strategy_base):
         self.entry_price = 0.0
         self.current_balance = self.starting_balance
         self.balance_history = []
-        self.last_df = None
 
     def run_strategy(self, df: pd.DataFrame) -> pd.DataFrame:
         """Run the enhanced trading strategy with dynamic stops"""
         # Store dataframe and calculate indicators
-        self.last_df = df
         df = self.calculate_indicators(df)
 
         # Counter for printing trade details (for debugging)
@@ -96,7 +94,7 @@ class Optimize_parameters(Strategy_base):
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
                     # Print trade details (for debugging)
-                    if isDebug:
+                    if isDebug and counter < 2:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -112,7 +110,7 @@ class Optimize_parameters(Strategy_base):
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
                     # Print trade details (for debugging)
-                    if isDebug:
+                    if isDebug and counter < 2:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -131,6 +129,10 @@ class Optimize_parameters(Strategy_base):
                     
             # Update balance history
             self.balance_history[i] = self.current_balance
+            if self.current_balance <= 0:
+                self.current_balance = 0
+                self.balance_history[i] = 0
+                break
 
             # Update position size
             if self.position_size < 50000:
@@ -146,11 +148,8 @@ class Optimize_parameters(Strategy_base):
                     self.entry_price = current_price
                     positions[i] = entry_signal
                     # Set initial stop loss
-                    stop_losses[i] = self.calculate_dynamic_stop_loss(
-                        current_row, 
-                        entry_signal
-                    )
-                    stop_losses[i-1] = stop_losses[i]
+                    stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position, self.entry_price, initial=True)
+                    continue
                 else:
                     positions[i] = 0
             else:
@@ -158,7 +157,7 @@ class Optimize_parameters(Strategy_base):
                     
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position, self.entry_price)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

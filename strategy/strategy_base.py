@@ -362,13 +362,25 @@ class Strategy_base:
         
         return 0  # Hold
   
-    def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
+    def calculate_dynamic_stop_loss_old(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
         if position == 1:
             return row['close'] * (1 - max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
         elif position == -1:
             return row['close'] * (1 + max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
         return 0
+    
+    def calculate_dynamic_stop_loss(self, row: pd.Series, position: int, entry: float, initial=False) -> float:
+        if position == 1:
+            if initial:
+                return entry * (1 - self.stop_loss_pct)
+            max_price_since_entry = max(row['high'], entry)
+            return max_price_since_entry * (1 - self.stop_loss_pct)
+        elif position == -1:
+            if initial:
+                return entry * (1 + self.stop_loss_pct)
+            min_price_since_entry = min(row['low'], entry)
+            return min_price_since_entry * (1 + self.stop_loss_pct)
 
     def stop_loss_or_take_profit_hit(self, exit_price, type):
         # Calculate PnL
@@ -652,7 +664,7 @@ class Strategy_base:
         win_rate = performance['win_rate']
         num_trades = performance['num_trades']
 
-        if pnl <= 0 or max_drawdown >= 90 or win_rate > 99.9 or num_trades < 150: 
+        if pnl <= 0 or max_drawdown >= 90 or num_trades < 15: 
             return None
 
         normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
@@ -660,10 +672,10 @@ class Strategy_base:
         normalized_wr = win_rate / 100
 
         combined_metric = (
-            0.4 * normalized_pnl +
-            0.5 * normalized_mdd +
-            0.05 * normalized_wr +
-            0.05 * (num_trades / 1000)
+            0.6 * normalized_pnl +
+            0.3 * normalized_mdd +
+            0.09 * normalized_wr +
+            0.01 * (num_trades / 1000)
         )
 
         if combined_metric <= 0:

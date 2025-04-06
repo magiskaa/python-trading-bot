@@ -161,7 +161,6 @@ class Multistrategy_manager(Optimize_multistrategy):
         # Store dataframe and calculate indicators for each strategy
         dfs = [df.copy()] * len(self.strategies)
         for i, strategy in enumerate(self.strategies):
-            strategy.last_df = df
             dfs[i] = strategy.calculate_indicators(df.copy())
 
         # Counter and for printing trade details (for debugging)
@@ -196,7 +195,7 @@ class Multistrategy_manager(Optimize_multistrategy):
 
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
-                    if isDebug:
+                    if isDebug and counter < 2:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -211,7 +210,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                     positions[i] = 0
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
-                    if isDebug:
+                    if isDebug and counter < 2:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -230,6 +229,10 @@ class Multistrategy_manager(Optimize_multistrategy):
 
             # Update balance history
             self.balance_history[i] = self.current_balance
+            if self.current_balance <= 0:
+                self.current_balance = 0
+                self.balance_history[i] = 0
+                break
 
             # Update position size
             
@@ -248,18 +251,17 @@ class Multistrategy_manager(Optimize_multistrategy):
                         positions[i] = entry_signal
                         self.active_strategy = k
                         self.take_profit_pct = strategy.take_profit_pct
-                        self.stop_loss_pct = strategy.stop_loss_pct
-                        stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
-                        stop_losses[i-1] = stop_losses[i]
+                        stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position, self.entry_price, initial=True)
                         break
                     else:
                         positions[i] = 0
+                continue
             else:
                 positions[i] = self.current_position
 
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
+                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position, self.entry_price)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

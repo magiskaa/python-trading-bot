@@ -9,7 +9,7 @@ import numpy as np
 from strategy.multistrategy_manager import Multistrategy_manager
 from config.config import (API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, 
                            MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, 
-                           DEFAULT_PARAMS, BACKTEST_START)
+                           MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8, DEFAULT_PARAMS, BACKTEST_START)
 
 class BinanceBot(Multistrategy_manager):
     def __init__(self):
@@ -19,6 +19,7 @@ class BinanceBot(Multistrategy_manager):
         self.position_size = 0
         self.stop_loss = 0
         self.quantity = 0
+        self.initial = False
 
     def account_balance(self, balance_client):
         try:
@@ -123,6 +124,7 @@ class BinanceBot(Multistrategy_manager):
     def run_strategies(self, df: pd.DataFrame, client, balance_client):
         acc_bal = self.account_balance(balance_client)
         print(f"Account balance: ${acc_bal}")
+        self.initial = False
 
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
@@ -152,7 +154,7 @@ class BinanceBot(Multistrategy_manager):
 
         # Calculate position size
         if self.position_size < 50000:
-            self.position_size = self.account_balance(balance_client) * self.leverage * 0.9
+            self.position_size = acc_bal * self.leverage * 0.9
         else:
             self.position_size = 50000
 
@@ -160,26 +162,29 @@ class BinanceBot(Multistrategy_manager):
         if self.current_position == 0:
             for i, strategy in enumerate(self.strategies):
                 entry_signal = strategy.check_entry_automated_print(current_rows[i])
-                print(f"Entry signal: {entry_signal}\n")
+                print(f"Entry signal: {entry_signal}")
                 if entry_signal != 0:
                     self.current_position = entry_signal
                     self.entry_price = current_price
                     self.active_strategy = i
                     self.take_profit_pct = strategy.take_profit_pct
-                    self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], entry_signal)
+                    self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position, self.entry_price, initial=True)
                     if self.current_position == 1:
                         self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
                         self.create_order(client, SIDE_BUY, self.quantity, SYMBOL)
                         self.place_take_profit_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.entry_price * (1 + self.take_profit_pct), 1))
+                        self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.stop_loss, 1))
                     elif self.current_position == -1:
                         self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
                         self.create_order(client, SIDE_SELL, self.quantity, SYMBOL)
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
+                        self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
+                    self.initial = True
                     break
 
         # Create or update stop loss order
-        if self.current_position != 0:
-            new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
+        if self.current_position != 0 and self.initial == False:
+            new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position, self.entry_price)
             if self.current_position == 1 and new_stop > self.stop_loss:
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.stop_loss, 1))
@@ -363,6 +368,50 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_6['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_6['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_6['obv_ma_period']
+        )
+        bot.add_strategy(
+            bb_period=MULTISTRAT_PARAMS_7['bb_period'],
+            bb_std=MULTISTRAT_PARAMS_7['bb_std'],
+            adx_period=MULTISTRAT_PARAMS_7['adx_period'],
+            adx_threshold=MULTISTRAT_PARAMS_7['adx_threshold'],
+            rsi_period=MULTISTRAT_PARAMS_7['rsi_period'],
+            rsi_overbought=MULTISTRAT_PARAMS_7['rsi_overbought'],
+            rsi_oversold=MULTISTRAT_PARAMS_7['rsi_oversold'],
+            stop_loss_pct=MULTISTRAT_PARAMS_7['stop_loss_pct'],
+            take_profit_pct=MULTISTRAT_PARAMS_7['take_profit_pct'],
+            atr_period=MULTISTRAT_PARAMS_7['atr_period'],
+            atr_multiplier=MULTISTRAT_PARAMS_7['atr_multiplier'],
+            keltner_period=MULTISTRAT_PARAMS_7['keltner_period'],
+            keltner_atr_factor=MULTISTRAT_PARAMS_7['keltner_atr_factor'],
+            hma_period=MULTISTRAT_PARAMS_7['hma_period'],
+            vwap_std=MULTISTRAT_PARAMS_7['vwap_std'],
+            macd_fast_period=MULTISTRAT_PARAMS_7['macd_fast_period'],
+            macd_slow_period=MULTISTRAT_PARAMS_7['macd_slow_period'],
+            macd_signal_period=MULTISTRAT_PARAMS_7['macd_signal_period'],
+            mfi_period=MULTISTRAT_PARAMS_7['mfi_period'],
+            obv_ma_period=MULTISTRAT_PARAMS_7['obv_ma_period']
+        )
+        bot.add_strategy(
+            bb_period=MULTISTRAT_PARAMS_8['bb_period'],
+            bb_std=MULTISTRAT_PARAMS_8['bb_std'],
+            adx_period=MULTISTRAT_PARAMS_8['adx_period'],
+            adx_threshold=MULTISTRAT_PARAMS_8['adx_threshold'],
+            rsi_period=MULTISTRAT_PARAMS_8['rsi_period'],
+            rsi_overbought=MULTISTRAT_PARAMS_8['rsi_overbought'],
+            rsi_oversold=MULTISTRAT_PARAMS_8['rsi_oversold'],
+            stop_loss_pct=MULTISTRAT_PARAMS_8['stop_loss_pct'],
+            take_profit_pct=MULTISTRAT_PARAMS_8['take_profit_pct'],
+            atr_period=MULTISTRAT_PARAMS_8['atr_period'],
+            atr_multiplier=MULTISTRAT_PARAMS_8['atr_multiplier'],
+            keltner_period=MULTISTRAT_PARAMS_8['keltner_period'],
+            keltner_atr_factor=MULTISTRAT_PARAMS_8['keltner_atr_factor'],
+            hma_period=MULTISTRAT_PARAMS_8['hma_period'],
+            vwap_std=MULTISTRAT_PARAMS_8['vwap_std'],
+            macd_fast_period=MULTISTRAT_PARAMS_8['macd_fast_period'],
+            macd_slow_period=MULTISTRAT_PARAMS_8['macd_slow_period'],
+            macd_signal_period=MULTISTRAT_PARAMS_8['macd_signal_period'],
+            mfi_period=MULTISTRAT_PARAMS_8['mfi_period'],
+            obv_ma_period=MULTISTRAT_PARAMS_8['obv_ma_period']
         )
 
         client.futures_change_leverage(symbol=SYMBOL, leverage=DEFAULT_PARAMS['leverage'])

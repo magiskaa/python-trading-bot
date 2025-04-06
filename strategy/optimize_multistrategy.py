@@ -39,10 +39,3 @@ class Optimize_multistrategy(Strategy_base):
         self.macd_signal_period = macd_signal_period
         self.mfi_period = mfi_period
         self.obv_ma_period = obv_ma_period
-        
-        # Initialize additional attributes
-        self.current_position = 0
-        self.entry_price = 0.0
-        self.current_balance = self.starting_balance
-        self.balance_history = []
-        self.last_df = None
