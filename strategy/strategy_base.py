@@ -362,7 +362,7 @@ class Strategy_base:
         
         return 0  # Hold
   
-    def calculate_dynamic_stop_loss_old(self, row: pd.Series, position: int) -> float:
+    def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
         if position == 1:
             return row['close'] * (1 - max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
@@ -370,7 +370,7 @@ class Strategy_base:
             return row['close'] * (1 + max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
         return 0
     
-    def calculate_dynamic_stop_loss(self, row: pd.Series, position: int, entry: float, initial=False) -> float:
+    def calculate_dynamic_stop_loss_new(self, row: pd.Series, position: int, entry: float, initial=False) -> float:
         if position == 1:
             if initial:
                 return entry * (1 - self.stop_loss_pct)

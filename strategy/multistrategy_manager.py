@@ -167,6 +167,8 @@ class Multistrategy_manager(Optimize_multistrategy):
         counter = 0
         isDebug = False # Change to True if you want to print trades
 
+        isNew = False
+
         # Initialize arrays
         df_len = len(df)
         positions = np.zeros(df_len)
@@ -195,7 +197,7 @@ class Multistrategy_manager(Optimize_multistrategy):
 
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
-                    if isDebug and counter < 2:
+                    if isDebug and counter < 12:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -210,7 +212,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                     positions[i] = 0
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
-                    if isDebug and counter < 2:
+                    if isDebug and counter < 12:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -251,17 +253,27 @@ class Multistrategy_manager(Optimize_multistrategy):
                         positions[i] = entry_signal
                         self.active_strategy = k
                         self.take_profit_pct = strategy.take_profit_pct
-                        stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position, self.entry_price, initial=True)
-                        break
+                        if k == 55 or k == 66 or k == 77: # Change these to the strategies you want to use the new stop loss with
+                            isNew = True
+                            stop_losses[i] = strategy.calculate_dynamic_stop_loss_new(current_rows[self.active_strategy], self.current_position, self.entry_price, initial=True)
+                            break
+                        else:
+                            stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
+                            stop_losses[i-1] = stop_losses[i]
+                            break
                     else:
                         positions[i] = 0
-                continue
+                if isNew:
+                    continue
             else:
                 positions[i] = self.current_position
 
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position, self.entry_price)
+                if isNew:
+                    new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss_new(current_rows[self.active_strategy], self.current_position, self.entry_price)
+                else:
+                    new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

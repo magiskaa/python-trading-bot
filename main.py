@@ -7,7 +7,7 @@ from strategy.multistrategy_manager import Multistrategy_manager
 from config.config import (SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, 
                            MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, 
                            MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8,
-                           MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10)
+                           MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10, MULTISTRAT_PARAMS_11)
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
@@ -480,6 +480,29 @@ def run_multistrategy_optimization():
         macd_signal_period=MULTISTRAT_PARAMS_10['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_10['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_10['obv_ma_period']
+    )
+
+    manager.add_strategy(
+        bb_period=MULTISTRAT_PARAMS_11['bb_period'],
+        bb_std=MULTISTRAT_PARAMS_11['bb_std'],
+        adx_period=MULTISTRAT_PARAMS_11['adx_period'],
+        adx_threshold=MULTISTRAT_PARAMS_11['adx_threshold'],
+        rsi_period=MULTISTRAT_PARAMS_11['rsi_period'],
+        rsi_overbought=MULTISTRAT_PARAMS_11['rsi_overbought'],
+        rsi_oversold=MULTISTRAT_PARAMS_11['rsi_oversold'],
+        stop_loss_pct=MULTISTRAT_PARAMS_11['stop_loss_pct'],
+        take_profit_pct=MULTISTRAT_PARAMS_11['take_profit_pct'],
+        atr_period=MULTISTRAT_PARAMS_11['atr_period'],
+        atr_multiplier=MULTISTRAT_PARAMS_11['atr_multiplier'],
+        keltner_period=MULTISTRAT_PARAMS_11['keltner_period'],
+        keltner_atr_factor=MULTISTRAT_PARAMS_11['keltner_atr_factor'],
+        hma_period=MULTISTRAT_PARAMS_11['hma_period'],
+        vwap_std=MULTISTRAT_PARAMS_11['vwap_std'],
+        macd_fast_period=MULTISTRAT_PARAMS_11['macd_fast_period'],
+        macd_slow_period=MULTISTRAT_PARAMS_11['macd_slow_period'],
+        macd_signal_period=MULTISTRAT_PARAMS_11['macd_signal_period'],
+        mfi_period=MULTISTRAT_PARAMS_11['mfi_period'],
+        obv_ma_period=MULTISTRAT_PARAMS_11['obv_ma_period']
     )
 
     print("Strategies added\n")

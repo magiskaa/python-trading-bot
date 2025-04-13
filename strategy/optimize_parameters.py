@@ -94,7 +94,7 @@ class Optimize_parameters(Strategy_base):
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
                     # Print trade details (for debugging)
-                    if isDebug and counter < 2:
+                    if isDebug and counter < 5:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -110,7 +110,7 @@ class Optimize_parameters(Strategy_base):
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
                     # Print trade details (for debugging)
-                    if isDebug and counter < 2:
+                    if isDebug and counter < 5:
                         print("\nenp:", self.trades[counter]['entry_price'])
                         print("exp:", self.trades[counter]['exit_price'])
                         print("SL:", stop_losses[i-1])
@@ -148,8 +148,12 @@ class Optimize_parameters(Strategy_base):
                     self.entry_price = current_price
                     positions[i] = entry_signal
                     # Set initial stop loss
-                    stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position, self.entry_price, initial=True)
-                    continue
+                    #stop_losses[i] = self.calculate_dynamic_stop_loss_new(current_row, self.current_position, self.entry_price, initial=True)
+                    stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                    stop_losses[i-1] = stop_losses[i] 
+                    if isDebug and counter < 5:
+                        print("stop_loss:", stop_losses[i])
+                    #continue  # This is for the new stop loss calculation
                 else:
                     positions[i] = 0
             else:
@@ -157,11 +161,14 @@ class Optimize_parameters(Strategy_base):
                     
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position, self.entry_price)
+                #new_stop = self.calculate_dynamic_stop_loss_new(current_row, self.current_position, self.entry_price)
+                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:
                     stop_losses[i] = min(new_stop, stop_losses[i-1])
+                if isDebug and counter < 5:
+                    print("new_stop:", stop_losses[i])
             
         # Add results to dataframe
         df['position'] = positions
