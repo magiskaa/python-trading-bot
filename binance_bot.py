@@ -3,6 +3,8 @@ from binance.enums import *
 from binance.um_futures import UMFutures
 from binance.error import ClientError
 import time
+import os
+import json
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -142,8 +144,8 @@ class BinanceBot(Multistrategy_manager):
 
         # Check if position has been closed
         if self.current_position != 0:
-            sl_hit = client.get_order(SYMBOL, orderId=self.active_SL_order)
-            tp_hit = client.get_order(SYMBOL, orderId=self.active_TP_order)
+            sl_hit = client.get_order(orderId=self.active_SL_order)
+            tp_hit = client.get_order(orderId=self.active_TP_order)
             if sl_hit["status"] == "FILLED" or tp_hit["status"] == "FILLED":
                 self.current_position = 0
                 self.quantity = 0
@@ -151,6 +153,8 @@ class BinanceBot(Multistrategy_manager):
                 self.active_TP_order = None
                 self.active_strategy = None
                 client.futures_cancel_all_open_orders(symbol=SYMBOL)
+                with open('data/trade_details.json', 'w') as f:
+                    f.write("{}")
                 print("Position has been closed and all orders cancelled")
 
         # Calculate position size
@@ -181,6 +185,19 @@ class BinanceBot(Multistrategy_manager):
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                         self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
                     self.initial = True
+                    trade_details = {
+                        'current_position': self.current_position,
+                        'entry_price': self.entry_price,
+                        'active_strategy': self.active_strategy,
+                        'take_profit_pct': self.take_profit_pct,
+                        'stop_loss': self.stop_loss,
+                        'quantity': self.quantity,
+                        'active_SL_order': self.active_SL_order,
+                        'active_TP_order': self.active_TP_order
+                    }
+                    with open('data/trade_details.json', 'w') as f:
+                        json.dump(trade_details, f, indent=4)
+                    print(f"Trade details saved: {trade_details}")
                     break
 
         # Create or update stop loss order
@@ -484,6 +501,23 @@ def main():
         client.futures_change_leverage(symbol=SYMBOL, leverage=DEFAULT_PARAMS['leverage'])
 
         df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
+
+        string = input("Is a trade open? (y/n): ")
+        if string == 'y':
+            FILE_PATH = 'data/trade_details.json'
+            if os.path.exists(FILE_PATH):
+                with open(FILE_PATH, 'r') as f:
+                    data = json.load(f)
+                bot.current_position = data['current_position']
+                bot.entry_price = data['entry_price']
+                bot.active_strategy = data['active_strategy']
+                bot.take_profit_pct = data['take_profit_pct']
+                bot.stop_loss = data['stop_loss']
+                bot.quantity = data['quantity']
+                bot.active_SL_order = data['active_SL_order']
+                bot.active_TP_order = data['active_TP_order']
+            else:
+                print("Trade details file not found.")
 
         while True:
             try:
