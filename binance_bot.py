@@ -124,7 +124,7 @@ class BinanceBot(Multistrategy_manager):
             print(f"Quantity calculation error: {e}")
             return None
 
-    def run_strategies(self, df: pd.DataFrame, client, balance_client):
+    def run_strategies(self, df: pd.DataFrame, client, balance_client, data):
         acc_bal = self.account_balance(balance_client)
         print(f"Account balance: ${acc_bal}")
         self.initial = False
@@ -185,19 +185,19 @@ class BinanceBot(Multistrategy_manager):
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                         self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
                     self.initial = True
-                    trade_details = {
-                        'current_position': self.current_position,
-                        'entry_price': self.entry_price,
-                        'active_strategy': self.active_strategy,
-                        'take_profit_pct': self.take_profit_pct,
-                        'stop_loss': self.stop_loss,
-                        'quantity': self.quantity,
-                        'active_SL_order': self.active_SL_order,
-                        'active_TP_order': self.active_TP_order
+                    data["trade_details"] = {
+                        "current_position": self.current_position,
+                        "entry_price": self.entry_price,
+                        "active_strategy": self.active_strategy,
+                        "take_profit_pct": self.take_profit_pct,
+                        "stop_loss": self.stop_loss,
+                        "quantity": self.quantity,
+                        "active_SL_order": self.active_SL_order,
+                        "active_TP_order": self.active_TP_order
                     }
                     with open('data/trade_details.json', 'w') as f:
-                        json.dump(trade_details, f, indent=4)
-                    print(f"Trade details saved: {trade_details}")
+                        json.dump(data, f, indent=4)
+                    print(f"Trade details saved: {data['trade_details']}")
                     break
 
         # Create or update stop loss order
@@ -503,19 +503,20 @@ def main():
         df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
 
         string = input("Is a trade open? (y/n): ")
+        data = {}
         if string == 'y':
             FILE_PATH = 'data/trade_details.json'
             if os.path.exists(FILE_PATH):
                 with open(FILE_PATH, 'r') as f:
                     data = json.load(f)
-                bot.current_position = data['current_position']
-                bot.entry_price = data['entry_price']
-                bot.active_strategy = data['active_strategy']
-                bot.take_profit_pct = data['take_profit_pct']
-                bot.stop_loss = data['stop_loss']
-                bot.quantity = data['quantity']
-                bot.active_SL_order = data['active_SL_order']
-                bot.active_TP_order = data['active_TP_order']
+                bot.current_position = data["trade_details"]["current_position"]
+                bot.entry_price = data["trade_details"]["entry_price"]
+                bot.active_strategy = data["trade_details"]["active_strategy"]
+                bot.take_profit_pct = data["trade_details"]["take_profit_pct"]
+                bot.stop_loss = data["trade_details"]["stop_loss"]
+                bot.quantity = data["trade_details"]["quantity"]
+                bot.active_SL_order = data["trade_details"]["active_SL_order"]
+                bot.active_TP_order = data["trade_details"]["active_TP_order"]
             else:
                 print("Trade details file not found.")
 
@@ -524,7 +525,7 @@ def main():
                 time.sleep(1)
                 df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
                 print("Running strategy @", (datetime.now() + timedelta(hours=3)))
-                bot.run_strategies(df, client, balance_client)
+                bot.run_strategies(df, client, balance_client, data)
                 print("Strategy run, waiting for next hour\n")
                 wait_until_next_hour()
             except Exception as e:
