@@ -144,8 +144,8 @@ class BinanceBot(Multistrategy_manager):
 
         # Check if position has been closed
         if self.current_position != 0:
-            sl_hit = client.get_order(orderId=self.active_SL_order)
-            tp_hit = client.get_order(orderId=self.active_TP_order)
+            sl_hit = client.futures_get_order(symbol=SYMBOL, orderId=self.active_SL_order)
+            tp_hit = client.futures_get_order(symbol=SYMBOL, orderId=self.active_TP_order)
             if sl_hit["status"] == "FILLED" or tp_hit["status"] == "FILLED":
                 self.current_position = 0
                 self.quantity = 0
