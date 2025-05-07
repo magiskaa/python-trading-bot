@@ -361,7 +361,22 @@ class Strategy_base:
             return -1  # Sell signal
         
         return 0  # Hold
-  
+
+    def calculate_atr_stop_loss(self, row: pd.Series, position: int, entry: float) -> float:
+        if position == 1:
+            return entry - row['atr'] * self.atr_multiplier
+        elif position == -1:
+            return entry + row['atr'] * self.atr_multiplier
+        return 0
+
+    def calculate_dynamic_stop_loss_highlow(self, row: pd.Series, position: int) -> float:
+        """Calculate dynamic stop loss based on ATR"""
+        if position == 1:
+            return row['high'] * (1 - max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
+        elif position == -1:
+            return row['low'] * (1 + max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
+        return 0
+
     def calculate_dynamic_stop_loss(self, row: pd.Series, position: int) -> float:
         """Calculate dynamic stop loss based on ATR"""
         if position == 1:
@@ -369,18 +384,6 @@ class Strategy_base:
         elif position == -1:
             return row['close'] * (1 + max(self.stop_loss_pct, (row['atr'] * self.atr_multiplier) / row['close']))
         return 0
-    
-    def calculate_dynamic_stop_loss_new(self, row: pd.Series, position: int, entry: float, initial=False) -> float:
-        if position == 1:
-            if initial:
-                return entry * (1 - self.stop_loss_pct)
-            max_price_since_entry = max(row['high'], entry)
-            return max_price_since_entry * (1 - self.stop_loss_pct)
-        elif position == -1:
-            if initial:
-                return entry * (1 + self.stop_loss_pct)
-            min_price_since_entry = min(row['low'], entry)
-            return min_price_since_entry * (1 + self.stop_loss_pct)
 
     def stop_loss_or_take_profit_hit(self, exit_price, type):
         # Calculate PnL

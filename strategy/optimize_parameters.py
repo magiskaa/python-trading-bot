@@ -148,12 +148,11 @@ class Optimize_parameters(Strategy_base):
                     self.entry_price = current_price
                     positions[i] = entry_signal
                     # Set initial stop loss
-                    #stop_losses[i] = self.calculate_dynamic_stop_loss_new(current_row, self.current_position, self.entry_price, initial=True)
-                    stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                    stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                    #stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                     stop_losses[i-1] = stop_losses[i] 
                     if isDebug and counter < 5:
                         print("stop_loss:", stop_losses[i])
-                    #continue  # This is for the new stop loss calculation
                 else:
                     positions[i] = 0
             else:
@@ -161,8 +160,8 @@ class Optimize_parameters(Strategy_base):
                     
             # Update trailing stop if in position
             if self.current_position != 0:
-                #new_stop = self.calculate_dynamic_stop_loss_new(current_row, self.current_position, self.entry_price)
-                new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                new_stop = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                #new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

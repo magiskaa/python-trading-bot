@@ -12,6 +12,7 @@ ehthumbs.db
 
 # Visual Studio Code
 .vscode/
+.vs/
 
 # Data files
 data/

@@ -128,6 +128,7 @@ class BinanceBot(Multistrategy_manager):
         acc_bal = self.account_balance(balance_client)
         print(f"Account balance: ${acc_bal}")
         self.initial = False
+        isHighlow = False
 
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
@@ -173,7 +174,11 @@ class BinanceBot(Multistrategy_manager):
                     self.entry_price = current_price
                     self.active_strategy = i
                     self.take_profit_pct = strategy.take_profit_pct
-                    self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
+                    if i == 0 or i == 2:
+                        isHighlow = True
+                        self.stop_loss = strategy.calculate_dynamic_stop_loss_highlow(current_rows[i], self.current_position)
+                    else:
+                        self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
                     if self.current_position == 1:
                         self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
                         self.create_order(client, SIDE_BUY, self.quantity, SYMBOL)
@@ -202,13 +207,16 @@ class BinanceBot(Multistrategy_manager):
 
         # Create or update stop loss order
         if self.current_position != 0 and self.initial == False:
-            new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
+            if isHighlow:
+                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
+            else:
+                new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
             if self.current_position == 1 and new_stop > self.stop_loss:
                 self.cancel_stop_loss_order(client, SYMBOL)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.stop_loss, 1))
+                self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(new_stop, 1))
             elif self.current_position == -1 and new_stop < self.stop_loss:
                 self.cancel_stop_loss_order(client, SYMBOL)
-                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
+                self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(new_stop, 1))
 
 def fetch_and_store_data(client, symbol, interval, start_str, filename):
     # Try loading existing data
