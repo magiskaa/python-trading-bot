@@ -128,7 +128,6 @@ class BinanceBot(Multistrategy_manager):
         acc_bal = self.account_balance(balance_client)
         print(f"Account balance: ${acc_bal}")
         self.initial = False
-        isHighlow = False
 
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
@@ -175,7 +174,6 @@ class BinanceBot(Multistrategy_manager):
                     self.active_strategy = i
                     self.take_profit_pct = strategy.take_profit_pct
                     if i == 0 or i == 2:
-                        isHighlow = True
                         self.stop_loss = strategy.calculate_dynamic_stop_loss_highlow(current_rows[i], self.current_position)
                     else:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
@@ -207,14 +205,16 @@ class BinanceBot(Multistrategy_manager):
 
         # Create or update stop loss order
         if self.current_position != 0 and self.initial == False:
-            if isHighlow:
+            if self.active_strategy == 0 or self.active_strategy == 2:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
             else:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
             if self.current_position == 1 and new_stop > self.stop_loss:
+                self.stop_loss = new_stop
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(new_stop, 1))
             elif self.current_position == -1 and new_stop < self.stop_loss:
+                self.stop_loss = new_stop
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(new_stop, 1))
 
