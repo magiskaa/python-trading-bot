@@ -253,7 +253,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                         positions[i] = entry_signal
                         self.active_strategy = k
                         self.take_profit_pct = strategy.take_profit_pct
-                        if k == 0 or k == 2: # Change these to the strategies you want to use the new stop loss with
+                        if k in [0, 2, 8, 9, 10]: # Change these to the strategies you want to use the highlow stop loss with
                             isHighlow = True
                             stop_losses[i] = strategy.calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
                             break

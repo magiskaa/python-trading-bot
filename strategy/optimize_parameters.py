@@ -67,6 +67,7 @@ class Optimize_parameters(Strategy_base):
         # Counter for printing trade details (for debugging)
         counter = 0
         isDebug = False # Change to True if you want to print trades
+        isHighlow = True
         
         # Initialize arrays
         positions = np.zeros(len(df))
@@ -148,8 +149,10 @@ class Optimize_parameters(Strategy_base):
                     self.entry_price = current_price
                     positions[i] = entry_signal
                     # Set initial stop loss
-                    stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
-                    #stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                    if isHighlow:
+                        stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                    else:
+                        stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                     stop_losses[i-1] = stop_losses[i] 
                     if isDebug and counter < 5:
                         print("stop_loss:", stop_losses[i])
@@ -160,8 +163,10 @@ class Optimize_parameters(Strategy_base):
                     
             # Update trailing stop if in position
             if self.current_position != 0:
-                new_stop = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
-                #new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                if isHighlow:
+                    new_stop = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                else:
+                    new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:

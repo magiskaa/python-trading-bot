@@ -7,12 +7,13 @@ import os
 import json
 from datetime import datetime, timedelta
 import pandas as pd
-import numpy as np
 from strategy.multistrategy_manager import Multistrategy_manager
-from config.config import (API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, 
-                           MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, 
-                           MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8, MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10,
-                           MULTISTRAT_PARAMS_11, DEFAULT_PARAMS, BACKTEST_START)
+from config.config import (
+    API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, 
+    MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, 
+    MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8, MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10,
+    MULTISTRAT_PARAMS_11, DEFAULT_PARAMS, BACKTEST_START
+)
 
 class BinanceBot(Multistrategy_manager):
     def __init__(self):
@@ -27,13 +28,10 @@ class BinanceBot(Multistrategy_manager):
     def account_balance(self, balance_client):
         try:
             balance = balance_client.balance()
-            # Change 'BNB' to for example 'USDT' if using USDT as collateral
             for i in balance:
-                if i['asset'] == 'BNB':
+                if i['asset'] == 'BNFCR':
                     balance = float(i['balance'])
-            # Convert BNB to USDT
-            bnb_price = float(balance_client.mark_price('BNBUSDT')['markPrice'])
-            balance *= bnb_price
+            
             return round(balance, 2)
         except ClientError as e:
             print(f"Balance error: {e}")
@@ -111,8 +109,10 @@ class BinanceBot(Multistrategy_manager):
             quantity = usd_size / current_price
             
             # Get symbol info for precision
-            symbol_info = next(filter(lambda x: x['symbol'] == symbol, 
-                                    client.futures_exchange_info()['symbols']))
+            symbol_info = next(
+                filter(lambda x: x['symbol'] == symbol, 
+                client.futures_exchange_info()['symbols'])
+            )
             precision = int(symbol_info['quantityPrecision'])
             
             # Round to valid precision
@@ -173,7 +173,7 @@ class BinanceBot(Multistrategy_manager):
                     self.entry_price = current_price
                     self.active_strategy = i
                     self.take_profit_pct = strategy.take_profit_pct
-                    if i == 0 or i == 2:
+                    if self.active_strategy in [0, 2, 8, 9, 10]:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss_highlow(current_rows[i], self.current_position)
                     else:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
@@ -205,7 +205,7 @@ class BinanceBot(Multistrategy_manager):
 
         # Create or update stop loss order
         if self.current_position != 0 and self.initial == False:
-            if self.active_strategy == 0 or self.active_strategy == 2:
+            if self.active_strategy in [0, 2, 8, 9, 10]:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
             else:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
@@ -517,14 +517,17 @@ def main():
             if os.path.exists(FILE_PATH):
                 with open(FILE_PATH, 'r') as f:
                     data = json.load(f)
-                bot.current_position = data["trade_details"]["current_position"]
-                bot.entry_price = data["trade_details"]["entry_price"]
-                bot.active_strategy = data["trade_details"]["active_strategy"]
-                bot.take_profit_pct = data["trade_details"]["take_profit_pct"]
-                bot.stop_loss = data["trade_details"]["stop_loss"]
-                bot.quantity = data["trade_details"]["quantity"]
-                bot.active_SL_order = data["trade_details"]["active_SL_order"]
-                bot.active_TP_order = data["trade_details"]["active_TP_order"]
+
+                details = data["trade_details"]
+
+                bot.current_position = details["current_position"]
+                bot.entry_price = details["entry_price"]
+                bot.active_strategy = details["active_strategy"]
+                bot.take_profit_pct = details["take_profit_pct"]
+                bot.stop_loss = details["stop_loss"]
+                bot.quantity = details["quantity"]
+                bot.active_SL_order = details["active_SL_order"]
+                bot.active_TP_order = details["active_TP_order"]
             else:
                 print("Trade details file not found.")
 
@@ -538,6 +541,7 @@ def main():
                 wait_until_next_hour()
             except Exception as e:
                 print(f"Error in main loop: {e}")
+                print("Retrying in 60s")
                 time.sleep(60)  # Wait before retrying
     except Exception as e:
         print(f"Fatal error: {e}")

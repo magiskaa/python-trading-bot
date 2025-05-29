@@ -4,10 +4,12 @@ import numpy as np
 import pandas as pd
 from strategy.optimize_parameters import Optimize_parameters
 from strategy.multistrategy_manager import Multistrategy_manager
-from config.config import (SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, 
-                           MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, 
-                           MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8,
-                           MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10, MULTISTRAT_PARAMS_11)
+from config.config import (
+    SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, 
+    MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, 
+    MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8,
+    MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10, MULTISTRAT_PARAMS_11
+)
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
