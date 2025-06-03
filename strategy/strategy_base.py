@@ -416,6 +416,7 @@ class Strategy_base:
         """Calculate PnL for a closed trade"""
         price_change = (exit_price - self.entry_price) / self.entry_price
         pnl = self.position_size * price_change * self.current_position
+        pnl -= self.position_size * 0.0005 # Taker fees
         return pnl
     
     def plot_results(self, df: pd.DataFrame):
@@ -487,7 +488,7 @@ class Strategy_base:
         
         plt.tight_layout()
         try:
-            plt.savefig('data/strategy_results.png')
+            plt.savefig('data/chart_strategy_results.png')
         except Exception as e:
             print(f"Error saving figure: {e}")
         finally:
@@ -588,7 +589,7 @@ class Strategy_base:
             print("Current best parameters:")
             for param, value in best_params.items():
                 if value is not None:
-                    print(f"  {param}: {value}")
+                    print(f"    '{param}': {value},")
 
             for param_name, current_value in best_params.items():
                 # Determine the range of test values based on the parameter type
@@ -667,7 +668,7 @@ class Strategy_base:
         win_rate = performance['win_rate']
         num_trades = performance['num_trades']
 
-        if pnl <= 0 or max_drawdown >= 90 or num_trades < 15: 
+        if pnl <= 0 or max_drawdown >= 50 or num_trades < 5:
             return None
 
         normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)

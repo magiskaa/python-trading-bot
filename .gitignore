@@ -19,7 +19,6 @@ data/
 
 # Secrets and configuration files
 config.py
-treidingg.txt
 strategy/__init__.py
 config/__init__.py
 

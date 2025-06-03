@@ -1,3 +1,4 @@
+import json
 from strategy.strategy_base import Strategy_base
 import numpy as np
 import pandas as pd
@@ -59,15 +60,17 @@ class Optimize_parameters(Strategy_base):
         self.current_balance = self.starting_balance
         self.balance_history = []
 
-    def run_strategy(self, df: pd.DataFrame) -> pd.DataFrame:
+    def run_strategy(self, df: pd.DataFrame, isMetrics=False) -> pd.DataFrame:
         """Run the enhanced trading strategy with dynamic stops"""
         # Store dataframe and calculate indicators
         df = self.calculate_indicators(df)
 
         # Counter for printing trade details (for debugging)
         counter = 0
-        isDebug = False # Change to True if you want to print trades
+
         isHighlow = True
+
+        trades = {}
         
         # Initialize arrays
         positions = np.zeros(len(df))
@@ -94,33 +97,46 @@ class Optimize_parameters(Strategy_base):
                 
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
-                    # Print trade details (for debugging)
-                    if isDebug and counter < 5:
-                        print("\nenp:", self.trades[counter]['entry_price'])
-                        print("exp:", self.trades[counter]['exit_price'])
-                        print("SL:", stop_losses[i-1])
-                        print("pnl:", self.trades[counter]['pnl'])
-                        print("pos:", self.trades[counter]['position'])
-                        print("bal:", self.trades[counter]['balance_after'])
-                        print("ext:", self.trades[counter]['exit_type'])
-                        print("pos_s:", self.position_size)
+
+                    if isMetrics:
+                        trade = self.trades[counter]
+                        trades[str(counter+1)] = {
+                            "position": trade["position"],
+                            "position_size": self.position_size,
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "exit_type": trade["exit_type"],
+                            "stop_loss": stop_losses[i-1],
+                            "pnl": trade["pnl"],
+                            "balance_after": trade["balance_after"],
+                        }
+                        with open('data/trades.json', 'w') as f:
+                            json.dump(trades, f, ensure_ascii=False, indent=4)
+
                         counter += 1
-                    # Reset position
+
                     self.current_position = 0
                     positions[i] = 0
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
-                    # Print trade details (for debugging)
-                    if isDebug and counter < 5:
-                        print("\nenp:", self.trades[counter]['entry_price'])
-                        print("exp:", self.trades[counter]['exit_price'])
-                        print("SL:", stop_losses[i-1])
-                        print("pnl:", self.trades[counter]['pnl'])
-                        print("pos:", self.trades[counter]['position'])
-                        print("bal:", self.trades[counter]['balance_after'])
-                        print("ext:", self.trades[counter]['exit_type'])
-                        print("pos_s:", self.position_size)
+
+                    if isMetrics:
+                        trade = self.trades[counter]
+                        trades[str(counter+1)] = {
+                            "position": trade["position"],
+                            "position_size": self.position_size,
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "exit_type": trade["exit_type"],
+                            "stop_loss": stop_losses[i-1],
+                            "pnl": trade["pnl"],
+                            "balance_after": trade["balance_after"],
+                        }
+                        with open('data/trades.json', 'w') as f:
+                            json.dump(trades, f, ensure_ascii=False, indent=4)
+                            
                         counter += 1
+
                     self.current_position = 0
                     positions[i] = 0
                 else:
@@ -136,10 +152,10 @@ class Optimize_parameters(Strategy_base):
                 break
 
             # Update position size
-            if self.position_size < 50000:
-                self.position_size = self.current_balance * self.leverage * 0.9
+            if self.position_size < 25000:
+                self.position_size = self.current_balance * self.leverage * 0.7
             else:
-                self.position_size = 50000
+                self.position_size = 25000
 
             # Check entry conditions if not in position
             if self.current_position == 0:
@@ -153,9 +169,7 @@ class Optimize_parameters(Strategy_base):
                         stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
                     else:
                         stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
-                    stop_losses[i-1] = stop_losses[i] 
-                    if isDebug and counter < 5:
-                        print("stop_loss:", stop_losses[i])
+                    stop_losses[i-1] = stop_losses[i]
                 else:
                     positions[i] = 0
             else:
@@ -171,8 +185,6 @@ class Optimize_parameters(Strategy_base):
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
                 else:
                     stop_losses[i] = min(new_stop, stop_losses[i-1])
-                if isDebug and counter < 5:
-                    print("new_stop:", stop_losses[i])
             
         # Add results to dataframe
         df['position'] = positions

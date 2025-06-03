@@ -12,7 +12,7 @@ from config.config import (
     API_KEY_FUTURES, API_SECRET_FUTURES, SYMBOL, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, 
     MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, 
     MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8, MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10,
-    MULTISTRAT_PARAMS_11, DEFAULT_PARAMS, BACKTEST_START
+    MULTISTRAT_PARAMS_11, DEFAULT_PARAMS, BACKTEST_START, HIGH_LOW_STRATS
 )
 
 class BinanceBot(Multistrategy_manager):
@@ -158,10 +158,10 @@ class BinanceBot(Multistrategy_manager):
                 print("Position has been closed and all orders cancelled")
 
         # Calculate position size
-        if self.position_size < 50000:
-            self.position_size = acc_bal * self.leverage * 0.9
+        if self.position_size < 25000:
+            self.position_size = acc_bal * self.leverage * 0.7
         else:
-            self.position_size = 50000
+            self.position_size = 25000
 
         # Check if a new position should be opened
         if self.current_position == 0:
@@ -173,7 +173,7 @@ class BinanceBot(Multistrategy_manager):
                     self.entry_price = current_price
                     self.active_strategy = i
                     self.take_profit_pct = strategy.take_profit_pct
-                    if self.active_strategy in [0, 2, 8, 9, 10]:
+                    if self.active_strategy in HIGH_LOW_STRATS:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss_highlow(current_rows[i], self.current_position)
                     else:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
@@ -205,7 +205,7 @@ class BinanceBot(Multistrategy_manager):
 
         # Create or update stop loss order
         if self.current_position != 0 and self.initial == False:
-            if self.active_strategy in [0, 2, 8, 9, 10]:
+            if self.active_strategy in HIGH_LOW_STRATS:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
             else:
                 new_stop = self.strategies[self.active_strategy].calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)

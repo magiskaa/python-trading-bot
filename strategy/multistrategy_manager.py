@@ -1,5 +1,6 @@
+import json
 from strategy.optimize_multistrategy import Optimize_multistrategy
-from config.config import DEFAULT_PARAMS, MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2
+from config.config import DEFAULT_PARAMS, MULTISTRAT_PARAMS, HIGH_LOW_STRATS
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ class Multistrategy_manager(Optimize_multistrategy):
         self.max_drawdown = 0
         self.balance_history = [DEFAULT_PARAMS['starting_balance']]
         self.leverage = DEFAULT_PARAMS['leverage']
-        self.position_size = DEFAULT_PARAMS['starting_balance'] * self.leverage * 0.9
+        self.position_size = DEFAULT_PARAMS['starting_balance'] * self.leverage * 0.7
 
     def add_strategy(self, bb_period, bb_std, adx_period, adx_threshold, 
                      rsi_period, rsi_overbought, rsi_oversold, stop_loss_pct, 
@@ -150,7 +151,7 @@ class Multistrategy_manager(Optimize_multistrategy):
         
         plt.tight_layout()
         try:
-            plt.savefig('data/multistrategy_results.png')
+            plt.savefig('data/chart_multistrategy_results.png')
         except Exception as e:
             print(f"Error saving figure: {e}")
         finally:
@@ -163,11 +164,11 @@ class Multistrategy_manager(Optimize_multistrategy):
         for i, strategy in enumerate(self.strategies):
             dfs[i] = strategy.calculate_indicators(df.copy())
 
-        # Counter and for printing trade details (for debugging)
         counter = 0
-        isDebug = False # Change to True if you want to print trades
 
         isHighlow = False
+
+        trades = {}
 
         # Initialize arrays
         df_len = len(df)
@@ -197,33 +198,49 @@ class Multistrategy_manager(Optimize_multistrategy):
 
                 if stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
-                    if isDebug and counter < 12:
-                        print("\nenp:", self.trades[counter]['entry_price'])
-                        print("exp:", self.trades[counter]['exit_price'])
-                        print("SL:", stop_losses[i-1])
-                        print("pnl:", self.trades[counter]['pnl'])
-                        print("pos:", self.trades[counter]['position'])
-                        print("bal:", self.trades[counter]['balance_after'])
-                        print("ext:", self.trades[counter]['exit_type'])
-                        print("pos_s:", self.position_size)
-                        counter += 1
-                    # Reset position
+
+                    trade = self.trades[counter]
+                    trades[str(counter+1)] = {
+                        "position": trade["position"],
+                        "position_size": self.position_size,
+                        "entry_price": trade["entry_price"],
+                        "exit_price": trade["exit_price"],
+                        "exit_type": trade["exit_type"],
+                        "stop_loss": stop_losses[i-1],
+                        "pnl": trade["pnl"],
+                        "balance_after": trade["balance_after"],
+                    }
+                    with open('data/trades.json', 'w') as f:
+                        json.dump(trades, f, ensure_ascii=False, indent=4)
+
+                    counter += 1
+
                     self.current_position = 0
                     positions[i] = 0
+                    isHighlow = False
+                    
                 elif take_profit_hit:
                     self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
-                    if isDebug and counter < 12:
-                        print("\nenp:", self.trades[counter]['entry_price'])
-                        print("exp:", self.trades[counter]['exit_price'])
-                        print("SL:", stop_losses[i-1])
-                        print("pnl:", self.trades[counter]['pnl'])
-                        print("pos:", self.trades[counter]['position'])
-                        print("bal:", self.trades[counter]['balance_after'])
-                        print("ext:", self.trades[counter]['exit_type'])
-                        print("pos_s:", self.position_size)
-                        counter += 1
+
+                    trade = self.trades[counter]
+                    trades[str(counter+1)] = {
+                        "position": trade["position"],
+                        "position_size": self.position_size,
+                        "entry_price": trade["entry_price"],
+                        "exit_price": trade["exit_price"],
+                        "exit_type": trade["exit_type"],
+                        "stop_loss": stop_losses[i-1],
+                        "pnl": trade["pnl"],
+                        "balance_after": trade["balance_after"],
+                    }
+                    with open('data/trades.json', 'w') as f:
+                        json.dump(trades, f, ensure_ascii=False, indent=4)
+                        
+                    counter += 1
+                    
                     self.current_position = 0
                     positions[i] = 0
+                    isHighlow = False
                 else:
                     positions[i] = self.current_position
             else: 
@@ -238,10 +255,10 @@ class Multistrategy_manager(Optimize_multistrategy):
 
             # Update position size
             
-            if self.position_size < 50000:
-                self.position_size = self.current_balance * self.leverage * 0.9
+            if self.position_size < 25000:
+                self.position_size = self.current_balance * self.leverage * 0.7
             else:
-                self.position_size = 50000
+                self.position_size = 25000
             
             # Check entry conditions if not in position
             if self.current_position == 0:
@@ -253,14 +270,13 @@ class Multistrategy_manager(Optimize_multistrategy):
                         positions[i] = entry_signal
                         self.active_strategy = k
                         self.take_profit_pct = strategy.take_profit_pct
-                        if k in [0, 2, 8, 9, 10]: # Change these to the strategies you want to use the highlow stop loss with
+                        if k in HIGH_LOW_STRATS: # Change these to the strategies you want to use the highlow stop loss with
                             isHighlow = True
                             stop_losses[i] = strategy.calculate_dynamic_stop_loss_highlow(current_rows[self.active_strategy], self.current_position)
-                            break
                         else:
                             stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
-                            stop_losses[i-1] = stop_losses[i]
-                            break
+                        stop_losses[i-1] = stop_losses[i]
+                        break
                     else:
                         positions[i] = 0
             else:

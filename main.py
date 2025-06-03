@@ -94,7 +94,7 @@ def run_parameter_optimization_strategy(mode):
             print("\nOptimization done\n")
         case 2:
             print("Calculating metrics...")
-            strategy.run_strategy(data)
+            strategy.run_strategy(data, isMetrics=True)
             strategy.calculate_metrics(data)
             strategy.plot_results(data)
             print("\nMetrics calculated\n")
@@ -369,7 +369,7 @@ def run_multistrategy_optimization():
         obv_ma_period=MULTISTRAT_PARAMS_5['obv_ma_period']
     )
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_6['bb_period'],
         bb_std=MULTISTRAT_PARAMS_6['bb_std'],
         adx_period=MULTISTRAT_PARAMS_6['adx_period'],
@@ -390,9 +390,9 @@ def run_multistrategy_optimization():
         macd_signal_period=MULTISTRAT_PARAMS_6['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_6['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_6['obv_ma_period']
-    )
+    ) """
     
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_7['bb_period'],
         bb_std=MULTISTRAT_PARAMS_7['bb_std'],
         adx_period=MULTISTRAT_PARAMS_7['adx_period'],
@@ -413,7 +413,7 @@ def run_multistrategy_optimization():
         macd_signal_period=MULTISTRAT_PARAMS_7['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_7['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_7['obv_ma_period']
-    )
+    ) """
 
     manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_8['bb_period'],
@@ -461,7 +461,7 @@ def run_multistrategy_optimization():
         obv_ma_period=MULTISTRAT_PARAMS_9['obv_ma_period']
     )
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_10['bb_period'],
         bb_std=MULTISTRAT_PARAMS_10['bb_std'],
         adx_period=MULTISTRAT_PARAMS_10['adx_period'],
@@ -482,9 +482,9 @@ def run_multistrategy_optimization():
         macd_signal_period=MULTISTRAT_PARAMS_10['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_10['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_10['obv_ma_period']
-    )
+    ) """
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_11['bb_period'],
         bb_std=MULTISTRAT_PARAMS_11['bb_std'],
         adx_period=MULTISTRAT_PARAMS_11['adx_period'],
@@ -505,7 +505,7 @@ def run_multistrategy_optimization():
         macd_signal_period=MULTISTRAT_PARAMS_11['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_11['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_11['obv_ma_period']
-    )
+    ) """
 
     print("Strategies added\n")
 
