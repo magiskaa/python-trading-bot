@@ -157,7 +157,7 @@ class BinanceBot(Multistrategy_manager):
                 client.futures_cancel_all_open_orders(symbol=SYMBOL)
                 with open('data/trade_details.json', 'w') as f:
                     f.write("{}")
-                print("Position has been closed and all orders cancelled")
+                print("Position has been closed and all orders cancelled\n")
 
         # Calculate position size
         if self.position_size < 25000:
@@ -169,7 +169,7 @@ class BinanceBot(Multistrategy_manager):
         if self.current_position == 0:
             for i, strategy in enumerate(self.strategies):
                 entry_signal = strategy.check_entry_automated(current_rows[i])
-                print(f"Entry signal: {entry_signal}")
+                print(f"Entry signal: {entry_signal}\n")
                 if entry_signal != 0:
                     self.current_position = entry_signal
                     self.entry_price = current_price
@@ -204,12 +204,12 @@ class BinanceBot(Multistrategy_manager):
                     with open('data/trade_details.json', 'w') as f:
                         json.dump(data, f, indent=4)
                     print(
-                        f"Trade details saved:\n"
+                        f"\nTrade details saved:\n"
                         f"Position: {details['current_position']}\n"
                         f"Entry price: {details['entry_price']}\n"
                         f"Active strat: {details['active_strategy']}\n"
                         f"Take profit pct: {details['take_profit_pct']}\n"
-                        f"Stop loss: {details['stop_loss']}\n"
+                        f"Stop loss: {details['stop_loss']:.2f}\n"
                         f"Quantity: {details['quantity']}\n"
                         f"SL orderId: {details['active_SL_order']}\n"
                         f"TP orderId: {details['active_TP_order']}\n"
@@ -231,16 +231,17 @@ class BinanceBot(Multistrategy_manager):
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(new_stop, 1))
             
-            details["stop_loss"] = self.stop_loss,
-            details["active_SL_order"] = self.active_SL_order
+            if self.stop_loss == new_stop:    
+                details["stop_loss"] = self.stop_loss,
+                details["active_SL_order"] = self.active_SL_order
 
-            with open('data/trade_details.json', 'w') as f:
-                json.dump(data, f, indent=4)
-            print(
-                f"Trade stop loss details saved.\n"
-                f"SL: {details['stop_loss']}\n"
-                f"OrderId: {details['active_SL_order']}"
-            )
+                with open('data/trade_details.json', 'w') as f:
+                    json.dump(data, f, indent=4)
+                print(
+                    f"Trade stop loss details saved.\n"
+                    f"SL: {details['stop_loss']}\n"
+                    f"OrderId: {details['active_SL_order']}"
+                )
 
 
 def fetch_and_store_data(client, symbol, interval, start_str, filename):
