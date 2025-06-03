@@ -129,8 +129,6 @@ class BinanceBot(Multistrategy_manager):
         print(f"Account balance: ${acc_bal}")
         self.initial = False
 
-        details = data["trade_details"]
-
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
         for i, strategy in enumerate(self.strategies):
@@ -190,7 +188,7 @@ class BinanceBot(Multistrategy_manager):
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                         self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
                     self.initial = True
-                    details = {
+                    data["trade_details"] = {
                         "current_position": self.current_position,
                         "entry_price": self.entry_price,
                         "active_strategy": self.active_strategy,
@@ -200,6 +198,8 @@ class BinanceBot(Multistrategy_manager):
                         "active_SL_order": self.active_SL_order,
                         "active_TP_order": self.active_TP_order
                     }
+
+                    details = data["trade_details"]
 
                     with open('data/trade_details.json', 'w') as f:
                         json.dump(data, f, indent=4)
