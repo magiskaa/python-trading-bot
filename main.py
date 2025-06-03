@@ -144,8 +144,8 @@ def objective(trial):
     strategy = Optimize_parameters()
 
     # Set common parameters
-    strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.001, 0.15)
-    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.001, 0.3)
+    strategy.stop_loss_pct = trial.suggest_float('stop_loss_pct', 0.003, 0.15)
+    strategy.take_profit_pct = trial.suggest_float('take_profit_pct', 0.003, 0.3)
     strategy.atr_period = trial.suggest_int('atr_period', 1, 100)
     strategy.atr_multiplier = trial.suggest_float('atr_multiplier', 0.01, 5.0)
 
@@ -225,7 +225,7 @@ def objective(trial):
     print(f"Number of Trades: {num_trades}")
 
     # Restrictions for the strategy
-    if pnl <= 0 or max_drawdown >= 90 or num_trades < 15: 
+    if pnl <= 0 or max_drawdown >= 50 or num_trades < 25:
         return 0
 
     normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
@@ -233,8 +233,8 @@ def objective(trial):
     normalized_wr = win_rate / 100
 
     combined_metric = (
-        0.6 * normalized_pnl +
-        0.3 * normalized_mdd +
+        0.5 * normalized_pnl +
+        0.4 * normalized_mdd +
         0.09 * normalized_wr +
         0.01 * (num_trades / 1000)
     )

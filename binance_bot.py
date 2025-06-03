@@ -129,6 +129,8 @@ class BinanceBot(Multistrategy_manager):
         print(f"Account balance: ${acc_bal}")
         self.initial = False
 
+        details = data["trade_details"]
+
         # Calculate indicators for each strategy
         dfs = [None] * len(self.strategies)
         for i, strategy in enumerate(self.strategies):
@@ -188,7 +190,7 @@ class BinanceBot(Multistrategy_manager):
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
                         self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.stop_loss, 1))
                     self.initial = True
-                    data["trade_details"] = {
+                    details = {
                         "current_position": self.current_position,
                         "entry_price": self.entry_price,
                         "active_strategy": self.active_strategy,
@@ -198,9 +200,20 @@ class BinanceBot(Multistrategy_manager):
                         "active_SL_order": self.active_SL_order,
                         "active_TP_order": self.active_TP_order
                     }
+
                     with open('data/trade_details.json', 'w') as f:
                         json.dump(data, f, indent=4)
-                    print(f"Trade details saved: {data['trade_details']}")
+                    print(
+                        f"Trade details saved:\n"
+                        f"Position: {details['current_position']}\n"
+                        f"Entry price: {details['entry_price']}\n"
+                        f"Active strat: {details['active_strategy']}\n"
+                        f"Take profit pct: {details['take_profit_pct']}\n"
+                        f"Stop loss: {details['stop_loss']}\n"
+                        f"Quantity: {details['quantity']}\n"
+                        f"SL orderId: {details['active_SL_order']}\n"
+                        f"TP orderId: {details['active_TP_order']}\n"
+                    )
                     break
 
         # Create or update stop loss order
@@ -217,6 +230,18 @@ class BinanceBot(Multistrategy_manager):
                 self.stop_loss = new_stop
                 self.cancel_stop_loss_order(client, SYMBOL)
                 self.place_stop_loss_order(client, SYMBOL, SIDE_BUY, self.quantity, round(new_stop, 1))
+            
+            details["stop_loss"] = self.stop_loss,
+            details["active_SL_order"] = self.active_SL_order
+
+            with open('data/trade_details.json', 'w') as f:
+                json.dump(data, f, indent=4)
+            print(
+                f"Trade stop loss details saved.\n"
+                f"SL: {details['stop_loss']}\n"
+                f"OrderId: {details['active_SL_order']}"
+            )
+
 
 def fetch_and_store_data(client, symbol, interval, start_str, filename):
     # Try loading existing data
@@ -285,7 +310,7 @@ def main():
             mfi_period=MULTISTRAT_PARAMS['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS['obv_ma_period']
         )
-        bot.add_strategy(
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_2['bb_period'],
             bb_std=MULTISTRAT_PARAMS_2['bb_std'],
             adx_period=MULTISTRAT_PARAMS_2['adx_period'],
@@ -306,8 +331,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_2['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_2['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_2['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_3['bb_period'],
             bb_std=MULTISTRAT_PARAMS_3['bb_std'],
             adx_period=MULTISTRAT_PARAMS_3['adx_period'],
@@ -328,8 +353,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_3['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_3['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_3['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_4['bb_period'],
             bb_std=MULTISTRAT_PARAMS_4['bb_std'],
             adx_period=MULTISTRAT_PARAMS_4['adx_period'],
@@ -350,8 +375,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_4['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_4['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_4['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_5['bb_period'],
             bb_std=MULTISTRAT_PARAMS_5['bb_std'],
             adx_period=MULTISTRAT_PARAMS_5['adx_period'],
@@ -372,8 +397,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_5['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_5['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_5['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_6['bb_period'],
             bb_std=MULTISTRAT_PARAMS_6['bb_std'],
             adx_period=MULTISTRAT_PARAMS_6['adx_period'],
@@ -394,8 +419,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_6['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_6['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_6['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_7['bb_period'],
             bb_std=MULTISTRAT_PARAMS_7['bb_std'],
             adx_period=MULTISTRAT_PARAMS_7['adx_period'],
@@ -416,8 +441,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_7['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_7['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_7['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_8['bb_period'],
             bb_std=MULTISTRAT_PARAMS_8['bb_std'],
             adx_period=MULTISTRAT_PARAMS_8['adx_period'],
@@ -438,8 +463,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_8['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_8['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_8['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_9['bb_period'],
             bb_std=MULTISTRAT_PARAMS_9['bb_std'],
             adx_period=MULTISTRAT_PARAMS_9['adx_period'],
@@ -460,8 +485,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_9['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_9['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_9['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_10['bb_period'],
             bb_std=MULTISTRAT_PARAMS_10['bb_std'],
             adx_period=MULTISTRAT_PARAMS_10['adx_period'],
@@ -482,8 +507,8 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_10['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_10['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_10['obv_ma_period']
-        )
-        bot.add_strategy(
+        ) """
+        """ bot.add_strategy(
             bb_period=MULTISTRAT_PARAMS_11['bb_period'],
             bb_std=MULTISTRAT_PARAMS_11['bb_std'],
             adx_period=MULTISTRAT_PARAMS_11['adx_period'],
@@ -504,7 +529,7 @@ def main():
             macd_signal_period=MULTISTRAT_PARAMS_11['macd_signal_period'],
             mfi_period=MULTISTRAT_PARAMS_11['mfi_period'],
             obv_ma_period=MULTISTRAT_PARAMS_11['obv_ma_period']
-        )
+        ) """
 
         client.futures_change_leverage(symbol=SYMBOL, leverage=DEFAULT_PARAMS['leverage'])
 
@@ -537,7 +562,7 @@ def main():
                 df = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
                 print("Running strategy @", (datetime.now() + timedelta(hours=3)))
                 bot.run_strategies(df, client, balance_client, data)
-                print("Strategy run, waiting for next hour\n")
+                print("\nStrategy run, waiting for next hour\n")
                 wait_until_next_hour()
             except Exception as e:
                 print(f"Error in main loop: {e}")
