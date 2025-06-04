@@ -76,12 +76,15 @@ class Optimize_parameters(Strategy_base):
         positions = np.zeros(len(df))
         self.balance_history = [self.starting_balance] * len(df)
         stop_losses = np.zeros(len(df))
+        take_profits = np.zeros(len(df))
         
         for i in range(len(df)):
             current_price = df['close'].iloc[i]
             lowest_price = df['low'].iloc[i]
             highest_price = df['high'].iloc[i]
             current_row = df.iloc[i]
+
+            isInitial = False
             
             # Check exit conditions first
             if self.current_position != 0:
@@ -91,11 +94,34 @@ class Optimize_parameters(Strategy_base):
                     (self.current_position == -1 and highest_price > stop_losses[i-1])
                 )
                 take_profit_hit = (
-                    (self.current_position == 1 and (highest_price - self.entry_price) / self.entry_price > self.take_profit_pct) or
-                    (self.current_position == -1 and (self.entry_price - lowest_price) / self.entry_price > self.take_profit_pct)
+                    (self.current_position == 1 and highest_price > take_profits[i-1]) or
+                    (self.current_position == -1 and lowest_price < take_profits[i-1])
                 )
-                
-                if stop_hit:
+        
+                if take_profit_hit:
+                    self.stop_loss_or_take_profit_hit(take_profits[i-1], type='take_profit')
+
+                    if isMetrics:
+                        trade = self.trades[counter]
+                        trades[str(counter+1)] = {
+                            "position": trade["position"],
+                            "position_size": self.position_size,
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "exit_type": trade["exit_type"],
+                            "stop_loss": stop_losses[i-1],
+                            "take_profit": take_profits[i-1],
+                            "pnl": trade["pnl"],
+                            "balance_after": trade["balance_after"],
+                        }
+                        with open('data/trades.json', 'w') as f:
+                            json.dump(trades, f, ensure_ascii=False, indent=4)
+                            
+                        counter += 1
+
+                    self.current_position = 0
+                    positions[i] = 0
+                elif stop_hit:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
 
                     if isMetrics:
@@ -107,34 +133,13 @@ class Optimize_parameters(Strategy_base):
                             "exit_price": trade["exit_price"],
                             "exit_type": trade["exit_type"],
                             "stop_loss": stop_losses[i-1],
+                            "take_profit": take_profits[i-1],
                             "pnl": trade["pnl"],
                             "balance_after": trade["balance_after"],
                         }
                         with open('data/trades.json', 'w') as f:
                             json.dump(trades, f, ensure_ascii=False, indent=4)
 
-                        counter += 1
-
-                    self.current_position = 0
-                    positions[i] = 0
-                elif take_profit_hit:
-                    self.stop_loss_or_take_profit_hit(self.entry_price * (1 + self.take_profit_pct), type='take_profit')
-
-                    if isMetrics:
-                        trade = self.trades[counter]
-                        trades[str(counter+1)] = {
-                            "position": trade["position"],
-                            "position_size": self.position_size,
-                            "entry_price": trade["entry_price"],
-                            "exit_price": trade["exit_price"],
-                            "exit_type": trade["exit_type"],
-                            "stop_loss": stop_losses[i-1],
-                            "pnl": trade["pnl"],
-                            "balance_after": trade["balance_after"],
-                        }
-                        with open('data/trades.json', 'w') as f:
-                            json.dump(trades, f, ensure_ascii=False, indent=4)
-                            
                         counter += 1
 
                     self.current_position = 0
@@ -169,22 +174,40 @@ class Optimize_parameters(Strategy_base):
                         stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
                     else:
                         stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+
+                    if self.current_position == 1:
+                        take_profits[i] = self.entry_price * (1 + self.take_profit_pct)
+                        if stop_losses[i] > self.entry_price:
+                            stop_losses[i] = self.entry_price - self.entry_price * self.stop_loss_pct
+                    elif self.current_position == -1:
+                        take_profits[i] = self.entry_price * (1 - self.take_profit_pct)
+                        if stop_losses[i] < self.entry_price:
+                            stop_losses[i] = self.entry_price + self.entry_price * self.stop_loss_pct
+                    
                     stop_losses[i-1] = stop_losses[i]
+                    take_profits[i-1] = take_profits[i]
+
+                    isInitial = True
                 else:
                     positions[i] = 0
             else:
                 positions[i] = self.current_position
                     
             # Update trailing stop if in position
-            if self.current_position != 0:
+            if self.current_position != 0 and isInitial == False:
                 if isHighlow:
                     new_stop = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
                 else:
                     new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
                 if self.current_position == 1:
                     stop_losses[i] = max(new_stop, stop_losses[i-1])
+                    if stop_losses[i] > current_price:
+                        stop_losses[i] = current_price - current_price * 0.001
                 else:
                     stop_losses[i] = min(new_stop, stop_losses[i-1])
+                    if stop_losses[i] < current_price:
+                        stop_losses[i] = current_price + current_price * 0.001
+                take_profits[i] = take_profits[i-1]
             
         # Add results to dataframe
         df['position'] = positions

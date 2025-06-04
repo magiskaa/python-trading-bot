@@ -178,11 +178,15 @@ class BinanceBot(Multistrategy_manager):
                     else:
                         self.stop_loss = strategy.calculate_dynamic_stop_loss(current_rows[i], self.current_position)
                     if self.current_position == 1:
+                        if self.stop_loss > self.entry_price:
+                            self.stop_loss = self.entry_price - self.entry_price * strategy.stop_loss_pct
                         self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
                         self.create_order(client, SIDE_BUY, self.quantity, SYMBOL)
                         self.place_take_profit_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.entry_price * (1 + self.take_profit_pct), 1))
                         self.place_stop_loss_order(client, SYMBOL, SIDE_SELL, self.quantity, round(self.stop_loss, 1))
                     elif self.current_position == -1:
+                        if self.stop_loss < self.entry_price:
+                            self.stop_loss = self.entry_price + self.entry_price * strategy.stop_loss_pct
                         self.quantity = self.calculate_position_quantity(client, SYMBOL, current_price, self.position_size)
                         self.create_order(client, SIDE_SELL, self.quantity, SYMBOL)
                         self.place_take_profit_order(client, SYMBOL, SIDE_BUY, self.quantity, round(self.entry_price * (1 - self.take_profit_pct), 1))
