@@ -596,9 +596,7 @@ class Strategy_base:
                 if isinstance(current_value, int):
                     test_values = [current_value + i for i in range(-20, 21) if current_value + i > 0]
                 elif isinstance(current_value, float):
-                    test_values = [
-                        round(current_value * (0.70 + i * 0.01), 5) for i in range(61)
-                    ]
+                    test_values = [round(current_value * (0.70 + i * 0.01), 5) for i in range(61) if round(current_value * (0.70 + i * 0.01), 5) >= 0.003]
                 else:
                     continue
 

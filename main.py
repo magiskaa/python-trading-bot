@@ -13,7 +13,7 @@ from config.config import (
 import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
-def fetch_and_store_data(client, symbol, interval, start_str, filename):
+def fetch_and_store_data(client, symbol, interval, start_str, filename, end_str=None):
     # Try loading existing data
     try:
         existing_df = pd.read_csv(filename, index_col='timestamp', parse_dates=True)
@@ -24,9 +24,9 @@ def fetch_and_store_data(client, symbol, interval, start_str, filename):
 
     # Fetch new data starting from the last stored timestamp
     if last_saved:
-        klines = client.get_historical_klines(symbol, interval, str(last_saved))
+        klines = client.get_historical_klines(symbol, interval, str(last_saved), end_str) if end_str else client.get_historical_klines(symbol, interval, str(last_saved))
     else:
-        klines = client.get_historical_klines(symbol, interval, start_str)
+        klines = client.get_historical_klines(symbol, interval, start_str, end_str) if end_str else client.get_historical_klines(symbol, interval, start_str)
 
     new_df = pd.DataFrame(klines, columns=[
         'timestamp','open','high','low','close','volume','close_time',
@@ -44,13 +44,13 @@ def fetch_and_store_data(client, symbol, interval, start_str, filename):
 
     return combined_df
 
-def run_parameter_optimization_strategy(mode):
+def run_parameter_optimization_strategy(mode, backtest_start, backtest_end, filename='data/symbol_data.csv'):
     print("\nFetching data...\n")
 
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
 
-    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
 
     print("Data fetched\n")
 
@@ -99,12 +99,12 @@ def run_parameter_optimization_strategy(mode):
             strategy.plot_results(data)
             print("\nMetrics calculated\n")
 
-def automated_optimization(trials):
+def automated_optimization(trials, backtest_start, backtest_end, filename='data/symbol_data.csv'):
     print("\nFetching data...\n")
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
     global data
-    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
 
     print("Data fetched\n")
 
@@ -225,7 +225,7 @@ def objective(trial):
     print(f"Number of Trades: {num_trades}")
 
     # Restrictions for the strategy
-    if pnl <= 0 or max_drawdown >= 50 or num_trades < 25:
+    if pnl <= 0 or max_drawdown >= 50 or num_trades < 50:
         return 0
 
     normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
@@ -241,12 +241,12 @@ def objective(trial):
 
     return combined_metric
 
-def run_multistrategy_optimization():
+def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/symbol_data.csv'):
     print("\nFetching data...\n")
 
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
-    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, BACKTEST_START, 'data/symbol_data.csv')
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
 
     print("Data fetched\n")
 
@@ -519,18 +519,43 @@ def run_multistrategy_optimization():
 
 if __name__ == '__main__':
     # Choose optimization to run
-    optimization = 3 # 1: Optimize a particular strategy, 2: Find the best strategy, 3: Combine and run multiple strategies together
+    optimization = 1   # 1: Optimize a particular strategy, 2: Find the best strategy, 3: Combine and run multiple strategies together
 
     # Choose mode for optimization 1
-    mode = 1 # 1: Run parameter optimization, 2: Print metrics and plot results 
+    mode = 1   # 1: Run parameter optimization, 2: Print metrics and plot results 
 
     # Choose how many trials to run for optimization 2
-    trials = 500
-    
+    trials = 5000
+
+    # Choose which time period to run the optimization on
+    time_period = 4   # 1: 2021 bull market, 2: 2022-2023 bear market, 3: 2024-2025 bull market, 4: None, use BACKTEST_START from config.py
+
+    match time_period:
+        case 1:
+            print("Running optimization on 2021 bull market data...")
+            backtest_start = "1 Jan, 2021"
+            backtest_end = "31 Dec, 2021"
+            filename = 'data/symbol_data_2021.csv'
+        case 2:
+            print("Running optimization on 2022-2023 bear market data...")
+            backtest_start = "1 Jan, 2022"
+            backtest_end = "31 Dec, 2023"
+            filename = 'data/symbol_data_2022_2023.csv'
+        case 3:
+            print("Running optimization on 2024-2025 bull market data...")
+            backtest_start = "1 Jan, 2024"
+            backtest_end = "31 Dec, 2025"
+            filename = 'data/symbol_data_2024_2025.csv'
+        case 4:
+            print("Running optimization on data from BACKTEST_START...")
+            backtest_start = BACKTEST_START
+            backtest_end = None
+            filename = 'data/symbol_data.csv'
+
     match optimization:
         case 1:
-            run_parameter_optimization_strategy(mode)   # Optimize a particular strategys parameters
+            run_parameter_optimization_strategy(mode, backtest_start, backtest_end, filename)   # Optimize a particular strategys parameters
         case 2:
-            automated_optimization(trials)              # Find the best strategy
+            automated_optimization(trials, backtest_start, backtest_end, filename)              # Find the best strategy
         case 3:
-            run_multistrategy_optimization()            # Combine and run multiple strategies together
+            run_multistrategy_optimization(backtest_start, backtest_end, filename)              # Combine and run multiple strategies together
