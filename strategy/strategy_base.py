@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from typing import Dict
 import numpy as np
@@ -5,6 +6,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from config.config import HIGHLOW
 
 class Strategy_base:
     def __init__(self, starting_balance: float, leverage: int):
@@ -583,7 +585,7 @@ class Strategy_base:
         improved = True
         iteration = 1
 
-        while improved and iteration <= 10:
+        while improved and iteration <= 5:
             improved = False
             print(f"\nIteration {iteration}")
             print("Current best parameters:")
@@ -690,3 +692,152 @@ class Strategy_base:
             'num_trades': num_trades,
             'win_rate': win_rate
         }
+
+    def run_strategy(self, df: pd.DataFrame, isMetrics=False) -> pd.DataFrame:
+        """Run the enhanced trading strategy with dynamic stops"""
+        # Store dataframe and calculate indicators
+        df = self.calculate_indicators(df)
+
+        # Counter for printing trade details (for debugging)
+        counter = 0
+
+        isHighlow = HIGHLOW
+
+        trades = {}
+        
+        # Initialize arrays
+        positions = np.zeros(len(df))
+        self.balance_history = [self.starting_balance] * len(df)
+        stop_losses = np.zeros(len(df))
+        take_profits = np.zeros(len(df))
+        
+        for i in range(len(df)):
+            current_price = df['close'].iloc[i]
+            lowest_price = df['low'].iloc[i]
+            highest_price = df['high'].iloc[i]
+            current_row = df.iloc[i]
+
+            isInitial = False
+            
+            # Check exit conditions first
+            if self.current_position != 0:
+                # Check stop loss and take profit
+                stop_hit = (
+                    (self.current_position == 1 and lowest_price < stop_losses[i-1]) or
+                    (self.current_position == -1 and highest_price > stop_losses[i-1])
+                )
+                take_profit_hit = (
+                    (self.current_position == 1 and highest_price > take_profits[i-1]) or
+                    (self.current_position == -1 and lowest_price < take_profits[i-1])
+                )
+        
+                if take_profit_hit and take_profits[i-1] != 0:
+                    self.stop_loss_or_take_profit_hit(take_profits[i-1], type='take_profit')
+
+                    if isMetrics:
+                        trade = self.trades[counter]
+                        trades[str(counter+1)] = {
+                            "position": trade["position"],
+                            "position_size": self.position_size,
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "exit_type": trade["exit_type"],
+                            "stop_loss": stop_losses[i-1],
+                            "take_profit": take_profits[i-1],
+                            "pnl": trade["pnl"],
+                            "balance_after": trade["balance_after"],
+                        }
+                        with open('data/trades.json', 'w') as f:
+                            json.dump(trades, f, ensure_ascii=False, indent=4)
+                            
+                        counter += 1
+
+                    self.current_position = 0
+                    positions[i] = 0
+                elif stop_hit and stop_losses[i-1] != 0:
+                    self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
+
+                    if isMetrics:
+                        trade = self.trades[counter]
+                        trades[str(counter+1)] = {
+                            "position": trade["position"],
+                            "position_size": self.position_size,
+                            "entry_price": trade["entry_price"],
+                            "exit_price": trade["exit_price"],
+                            "exit_type": trade["exit_type"],
+                            "stop_loss": stop_losses[i-1],
+                            "take_profit": take_profits[i-1],
+                            "pnl": trade["pnl"],
+                            "balance_after": trade["balance_after"],
+                        }
+                        with open('data/trades.json', 'w') as f:
+                            json.dump(trades, f, ensure_ascii=False, indent=4)
+
+                        counter += 1
+
+                    self.current_position = 0
+                    positions[i] = 0
+                else:
+                    positions[i] = self.current_position
+            else:
+                positions[i] = 0
+                    
+            # Update balance history
+            self.balance_history[i] = self.current_balance
+            if self.current_balance <= 0:
+                self.current_balance = 0
+                self.balance_history[i] = 0
+                break
+
+            # Update position size
+            if self.position_size < 25000:
+                self.position_size = self.current_balance * self.leverage * 0.7
+            else:
+                self.position_size = 25000
+
+            # Check entry conditions if not in position
+            if self.current_position == 0:
+                entry_signal = self.check_entry_automated(current_row)
+                if entry_signal != 0:
+                    self.current_position = entry_signal
+                    self.entry_price = current_price
+                    positions[i] = entry_signal
+                    # Set initial stop loss
+                    if isHighlow:
+                        stop_losses[i] = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                    else:
+                        stop_losses[i] = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+
+                    if self.current_position == 1:
+                        take_profits[i] = self.entry_price * (1 + self.take_profit_pct)
+                        if stop_losses[i] > self.entry_price:
+                            stop_losses[i] = self.entry_price - self.entry_price * self.stop_loss_pct
+                    elif self.current_position == -1:
+                        take_profits[i] = self.entry_price * (1 - self.take_profit_pct)
+                        if stop_losses[i] < self.entry_price:
+                            stop_losses[i] = self.entry_price + self.entry_price * self.stop_loss_pct
+                    
+                    stop_losses[i-1] = stop_losses[i]
+                    take_profits[i-1] = take_profits[i]
+
+                    isInitial = True
+                else:
+                    positions[i] = 0
+            else:
+                positions[i] = self.current_position
+                    
+            # Update trailing stop if in position
+            if self.current_position != 0 and isInitial == False:
+                if isHighlow:
+                    new_stop = self.calculate_dynamic_stop_loss_highlow(current_row, self.current_position)
+                else:
+                    new_stop = self.calculate_dynamic_stop_loss(current_row, self.current_position)
+                if self.current_position == 1:
+                    stop_losses[i] = max(new_stop, stop_losses[i-1])
+                    if stop_losses[i] > current_price:
+                        stop_losses[i] = current_price - current_price * 0.001
+                else:
+                    stop_losses[i] = min(new_stop, stop_losses[i-1])
+                    if stop_losses[i] < current_price:
+                        stop_losses[i] = current_price + current_price * 0.001
+                take_profits[i] = take_profits[i-1]

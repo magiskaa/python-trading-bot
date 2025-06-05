@@ -516,6 +516,49 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
     manager.plot_results(data)
     print("\nMetrics calculated\n")
 
+def run_walk_forward_optimization(backtest_start, backtest_end, filename='data/symbol_data.csv'):
+    print("\nFetching data...\n")
+
+    # Initialize API and fetch data
+    client = Client(API_KEY, API_SECRET)
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
+
+    print("Data fetched\n")
+
+    # Initialize strategies
+    manager = Multistrategy_manager()
+
+    # Add strategies
+    manager.add_strategy(
+        bb_period=MULTISTRAT_PARAMS['bb_period'],
+        bb_std=MULTISTRAT_PARAMS['bb_std'],
+        adx_period=MULTISTRAT_PARAMS['adx_period'],
+        adx_threshold=MULTISTRAT_PARAMS['adx_threshold'],
+        rsi_period=MULTISTRAT_PARAMS['rsi_period'],
+        rsi_overbought=MULTISTRAT_PARAMS['rsi_overbought'],
+        rsi_oversold=MULTISTRAT_PARAMS['rsi_oversold'],
+        stop_loss_pct=MULTISTRAT_PARAMS['stop_loss_pct'],
+        take_profit_pct=MULTISTRAT_PARAMS['take_profit_pct'],
+        atr_period=MULTISTRAT_PARAMS['atr_period'],
+        atr_multiplier=MULTISTRAT_PARAMS['atr_multiplier'],
+        keltner_period=MULTISTRAT_PARAMS['keltner_period'],
+        keltner_atr_factor=MULTISTRAT_PARAMS['keltner_atr_factor'],
+        hma_period=MULTISTRAT_PARAMS['hma_period'],
+        vwap_std=MULTISTRAT_PARAMS['vwap_std'],
+        macd_fast_period=MULTISTRAT_PARAMS['macd_fast_period'],
+        macd_slow_period=MULTISTRAT_PARAMS['macd_slow_period'],
+        macd_signal_period=MULTISTRAT_PARAMS['macd_signal_period'],
+        mfi_period=MULTISTRAT_PARAMS['mfi_period'],
+        obv_ma_period=MULTISTRAT_PARAMS['obv_ma_period']
+    )
+
+    print("Strategies added\n")
+
+    # Run walk-forward optimization
+    print("Running walk-forward optimization...")
+    manager.run_walk_forward_optimization(data)
+    print("\nWalk-forward optimization done\n")
+
 
 if __name__ == '__main__':
     # Choose optimization to run
@@ -528,29 +571,34 @@ if __name__ == '__main__':
     trials = 5000
 
     # Choose which time period to run the optimization on
-    time_period = 4   # 1: 2021 bull market, 2: 2022-2023 bear market, 3: 2024-2025 bull market, 4: None, use BACKTEST_START from config.py
+    time_period = 5   # 1: 2021 bull market, 2: 2022 bear market, 3: 2023-2025 bull market, 4: None, use BACKTEST_START from config.py, 5: Walk-forward optimization
 
     match time_period:
         case 1:
             print("Running optimization on 2021 bull market data...")
-            backtest_start = "1 Jan, 2021"
-            backtest_end = "31 Dec, 2021"
+            backtest_start = "1 Nov, 2020"
+            backtest_end = "30 Nov, 2021"
             filename = 'data/symbol_data_2021.csv'
         case 2:
-            print("Running optimization on 2022-2023 bear market data...")
-            backtest_start = "1 Jan, 2022"
-            backtest_end = "31 Dec, 2023"
-            filename = 'data/symbol_data_2022_2023.csv'
+            print("Running optimization on 2022 bear market data...")
+            backtest_start = "1 Dec, 2021"
+            backtest_end = "31 Dec, 2022"
+            filename = 'data/symbol_data_2022.csv'
         case 3:
-            print("Running optimization on 2024-2025 bull market data...")
-            backtest_start = "1 Jan, 2024"
+            print("Running optimization on 2023-2025 bull market data...")
+            backtest_start = "1 Jan, 2023"
             backtest_end = "31 Dec, 2025"
-            filename = 'data/symbol_data_2024_2025.csv'
+            filename = 'data/symbol_data_2023_2025.csv'
         case 4:
             print("Running optimization on data from BACKTEST_START...")
             backtest_start = BACKTEST_START
             backtest_end = None
             filename = 'data/symbol_data.csv'
+        case 5:
+            print("Running optimization on walk-forward data...")
+            backtest_start = "6 months ago"
+            backtest_end = None
+            filename = 'data/symbol_data_walk_forward.csv'
 
     match optimization:
         case 1:
@@ -559,3 +607,5 @@ if __name__ == '__main__':
             automated_optimization(trials, backtest_start, backtest_end, filename)              # Find the best strategy
         case 3:
             run_multistrategy_optimization(backtest_start, backtest_end, filename)              # Combine and run multiple strategies together
+        case 4:
+            run_walk_forward_optimization(backtest_start, backtest_end, filename)               # Walk forward optimization

@@ -198,7 +198,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                     (self.current_position == 1 and highest_price > take_profits[i-1]) or
                     (self.current_position == -1 and lowest_price < take_profits[i-1])
                 )
-                if take_profit_hit:
+                if take_profit_hit and take_profits[i-1] != 0:
                     self.stop_loss_or_take_profit_hit(take_profits[i-1], type='take_profit')
 
                     trade = self.trades[counter]
@@ -209,6 +209,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                         "exit_price": trade["exit_price"],
                         "exit_type": trade["exit_type"],
                         "stop_loss": stop_losses[i-1],
+                        "take_profit": take_profits[i-1],
                         "pnl": trade["pnl"],
                         "balance_after": trade["balance_after"],
                     }
@@ -220,7 +221,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                     self.current_position = 0
                     positions[i] = 0
                     isHighlow = False
-                elif stop_hit:
+                elif stop_hit and stop_losses[i-1] != 0:
                     self.stop_loss_or_take_profit_hit(stop_losses[i-1], type='stop_loss')
 
                     trade = self.trades[counter]
@@ -231,6 +232,7 @@ class Multistrategy_manager(Optimize_multistrategy):
                         "exit_price": trade["exit_price"],
                         "exit_type": trade["exit_type"],
                         "stop_loss": stop_losses[i-1],
+                        "take_profit": take_profits[i-1],
                         "pnl": trade["pnl"],
                         "balance_after": trade["balance_after"],
                     }
@@ -277,10 +279,14 @@ class Multistrategy_manager(Optimize_multistrategy):
                         else:
                             stop_losses[i] = strategy.calculate_dynamic_stop_loss(current_rows[self.active_strategy], self.current_position)
 
-                        if stop_losses[i] > self.entry_price and self.current_position == 1:
-                            stop_losses[i] = self.entry_price - self.entry_price * self.stop_loss_pct
-                        elif stop_losses[i] < self.entry_price and self.current_position == -1:
-                            stop_losses[i] = self.entry_price + self.entry_price * self.stop_loss_pct
+                        if self.current_position == 1:
+                            take_profits[i] = self.entry_price * (1 + self.take_profit_pct)
+                            if stop_losses[i] > self.entry_price:
+                                stop_losses[i] = self.entry_price - self.entry_price * self.stop_loss_pct
+                        elif self.current_position == -1:
+                            take_profits[i] = self.entry_price * (1 - self.take_profit_pct)
+                            if stop_losses[i] < self.entry_price:
+                                stop_losses[i] = self.entry_price + self.entry_price * self.stop_loss_pct
 
                         stop_losses[i-1] = stop_losses[i]
                         take_profits[i-1] = take_profits[i]
@@ -307,11 +313,28 @@ class Multistrategy_manager(Optimize_multistrategy):
                         stop_losses[i] = current_price + current_price * 0.001
                 take_profits[i] = take_profits[i-1]
 
-        # Add results to dataframe
-        df['position'] = positions
-        df['balance'] = self.balance_history
-        df['stop_loss'] = stop_losses
-
         return df
 
+    def run_walk_forward_optimization(self, df: pd.DataFrame):
+        """Run walk-forward optimization on the strategies"""
+        # Split data into training and testing sets
+        train_size = int(len(df) * 0.6)
+        train_df = df[:train_size]
+        test_df = df[train_size:]
 
+        # Run optimization on training set
+        for strategy in self.strategies:
+            strategy.optimize_step_by_step(train_df, MULTISTRAT_PARAMS)
+
+        print("\nOptimization complete. Starting walk-forward testing...")
+
+        # Run strategies on test set
+        results_df = self.run_strategies(test_df)
+
+        print("\nWalk-forward testing complete. Calculating metrics...")
+
+        # Calculate metrics and plot results
+        self.calculate_metrics()
+        self.plot_results(results_df)
+
+        return results_df
