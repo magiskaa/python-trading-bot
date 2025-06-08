@@ -1,3 +1,4 @@
+import pandas as pd
 from strategy.strategy_base import Strategy_base
 from config.config import DEFAULT_PARAMS
 
@@ -56,3 +57,7 @@ class Optimize_parameters(Strategy_base):
         self.entry_price = 0.0
         self.current_balance = self.starting_balance
         self.balance_history = []
+
+    def run_walk_forward_optimization(self, df: pd.DataFrame):
+        # TODO: Implement the walk-forward optimization logic
+        pass

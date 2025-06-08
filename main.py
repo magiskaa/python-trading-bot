@@ -2,10 +2,14 @@ import optuna
 from binance.client import Client
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 from strategy.optimize_parameters import Optimize_parameters
 from strategy.multistrategy_manager import Multistrategy_manager
 from config.config import (
-    SYMBOL, BACKTEST_START, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, 
+    SYMBOL, BACKTEST_START, BACKTEST_END, API_KEY, API_SECRET, DEFAULT_PARAMS, OPTIMIZE_PARAMS, 
     MULTISTRAT_PARAMS, MULTISTRAT_PARAMS_2, MULTISTRAT_PARAMS_3, MULTISTRAT_PARAMS_4, 
     MULTISTRAT_PARAMS_5, MULTISTRAT_PARAMS_6, MULTISTRAT_PARAMS_7, MULTISTRAT_PARAMS_8,
     MULTISTRAT_PARAMS_9, MULTISTRAT_PARAMS_10, MULTISTRAT_PARAMS_11
@@ -44,14 +48,13 @@ def fetch_and_store_data(client, symbol, interval, start_str, filename, end_str=
 
     return combined_df
 
-def run_parameter_optimization_strategy(mode, backtest_start, backtest_end, filename='data/symbol_data.csv'):
-    print("\nFetching data...\n")
-
+# Run parameter optimization or print metrics
+def run_parameter_optimization(mode, backtest_start, backtest_end, filename='data/symbol_data.csv'):
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
 
+    print("\nFetching data...\n")
     data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
-
     print("Data fetched\n")
 
     # Initialize strategy
@@ -99,18 +102,19 @@ def run_parameter_optimization_strategy(mode, backtest_start, backtest_end, file
             strategy.plot_results(data)
             print("\nMetrics calculated\n")
 
-def automated_optimization(trials, backtest_start, backtest_end, filename='data/symbol_data.csv'):
-    print("\nFetching data...\n")
+# Run automated optimization with Optuna
+def run_automated_optimization(trials, backtest_start, backtest_end, filename='data/symbol_data.csv'):
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
+    
+    print("\nFetching data...\n")
     global data
     data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
-
     print("Data fetched\n")
 
     # Run optimization
     storage = 'sqlite:///data/parameter_optimization.db'
-    study_name = 'parameter_optimization'
+    study_name = 'walk_forward'
 
     study = optuna.create_study(
         study_name=study_name,
@@ -225,7 +229,7 @@ def objective(trial):
     print(f"Number of Trades: {num_trades}")
 
     # Restrictions for the strategy
-    if pnl <= 0 or max_drawdown >= 50 or num_trades < 50:
+    if pnl <= 100 or max_drawdown >= 70 or num_trades < 10:
         return 0
 
     normalized_pnl = np.log1p(max(0, pnl)) / np.log1p(10000)
@@ -233,21 +237,21 @@ def objective(trial):
     normalized_wr = win_rate / 100
 
     combined_metric = (
-        0.5 * normalized_pnl +
-        0.4 * normalized_mdd +
-        0.09 * normalized_wr +
-        0.01 * (num_trades / 1000)
+        0.6 * normalized_pnl +
+        0.3 * normalized_mdd +
+        0.05 * normalized_wr +
+        0.04 * (num_trades / 1000)
     )
 
     return combined_metric
 
+# Run multistrategy optimization
 def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/symbol_data.csv'):
-    print("\nFetching data...\n")
-
     # Initialize API and fetch data
     client = Client(API_KEY, API_SECRET)
+    
+    print("\nFetching data...\n")
     data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
-
     print("Data fetched\n")
 
     # Initialize strategies
@@ -277,7 +281,7 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         obv_ma_period=MULTISTRAT_PARAMS['obv_ma_period']
     )
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_2['bb_period'],
         bb_std=MULTISTRAT_PARAMS_2['bb_std'],
         adx_period=MULTISTRAT_PARAMS_2['adx_period'],
@@ -298,9 +302,9 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_2['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_2['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_2['obv_ma_period']
-    )
+    ) """
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_3['bb_period'],
         bb_std=MULTISTRAT_PARAMS_3['bb_std'],
         adx_period=MULTISTRAT_PARAMS_3['adx_period'],
@@ -321,9 +325,9 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_3['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_3['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_3['obv_ma_period']
-    )
+    ) """
     
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_4['bb_period'],
         bb_std=MULTISTRAT_PARAMS_4['bb_std'],
         adx_period=MULTISTRAT_PARAMS_4['adx_period'],
@@ -344,9 +348,9 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_4['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_4['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_4['obv_ma_period']
-    )
+    ) """
     
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_5['bb_period'],
         bb_std=MULTISTRAT_PARAMS_5['bb_std'],
         adx_period=MULTISTRAT_PARAMS_5['adx_period'],
@@ -367,7 +371,7 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_5['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_5['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_5['obv_ma_period']
-    )
+    ) """
 
     """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_6['bb_period'],
@@ -415,7 +419,7 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         obv_ma_period=MULTISTRAT_PARAMS_7['obv_ma_period']
     ) """
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_8['bb_period'],
         bb_std=MULTISTRAT_PARAMS_8['bb_std'],
         adx_period=MULTISTRAT_PARAMS_8['adx_period'],
@@ -436,9 +440,9 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_8['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_8['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_8['obv_ma_period']
-    )
+    ) """
 
-    manager.add_strategy(
+    """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_9['bb_period'],
         bb_std=MULTISTRAT_PARAMS_9['bb_std'],
         adx_period=MULTISTRAT_PARAMS_9['adx_period'],
@@ -459,7 +463,7 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
         macd_signal_period=MULTISTRAT_PARAMS_9['macd_signal_period'],
         mfi_period=MULTISTRAT_PARAMS_9['mfi_period'],
         obv_ma_period=MULTISTRAT_PARAMS_9['obv_ma_period']
-    )
+    ) """
 
     """ manager.add_strategy(
         bb_period=MULTISTRAT_PARAMS_10['bb_period'],
@@ -516,96 +520,227 @@ def run_multistrategy_optimization(backtest_start, backtest_end, filename='data/
     manager.plot_results(data)
     print("\nMetrics calculated\n")
 
-def run_walk_forward_optimization(backtest_start, backtest_end, filename='data/symbol_data.csv'):
-    print("\nFetching data...\n")
+# In-sample permutation test
+def permutation_test(strategy_func, data, n_permutations=1000, **kwargs):
+    """Run a permutation test by shuffling data and re-running the strategy."""
+    original_performance = strategy_func(data, **kwargs)
+    perm_better_than_orig = 0
+    permuted_performances = []
 
-    # Initialize API and fetch data
+    for _ in tqdm(range(n_permutations)):
+        permuted_data = permute_returns_and_rebuild(data, random_state=None) # Use None to get a different random seed each time
+        permuted_data.index = data.index  # Keep original index if needed
+        permuted_data.columns = data.columns
+        perf = strategy_func(permuted_data, **kwargs)
+        if perf > original_performance:
+            perm_better_than_orig += 1
+        permuted_performances.append(perf)
+    
+    return original_performance, permuted_performances, perm_better_than_orig / n_permutations
+
+def run_in_sample_permutation_test(backtest_start, backtest_end, filename='data/symbol_data.csv', n_permutations=1000):
     client = Client(API_KEY, API_SECRET)
-    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
 
+    print("\nFetching data...\n")
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
     print("Data fetched\n")
 
-    # Initialize strategies
-    manager = Multistrategy_manager()
+    strategy = Optimize_parameters()
 
-    # Add strategies
-    manager.add_strategy(
-        bb_period=MULTISTRAT_PARAMS['bb_period'],
-        bb_std=MULTISTRAT_PARAMS['bb_std'],
-        adx_period=MULTISTRAT_PARAMS['adx_period'],
-        adx_threshold=MULTISTRAT_PARAMS['adx_threshold'],
-        rsi_period=MULTISTRAT_PARAMS['rsi_period'],
-        rsi_overbought=MULTISTRAT_PARAMS['rsi_overbought'],
-        rsi_oversold=MULTISTRAT_PARAMS['rsi_oversold'],
-        stop_loss_pct=MULTISTRAT_PARAMS['stop_loss_pct'],
-        take_profit_pct=MULTISTRAT_PARAMS['take_profit_pct'],
-        atr_period=MULTISTRAT_PARAMS['atr_period'],
-        atr_multiplier=MULTISTRAT_PARAMS['atr_multiplier'],
-        keltner_period=MULTISTRAT_PARAMS['keltner_period'],
-        keltner_atr_factor=MULTISTRAT_PARAMS['keltner_atr_factor'],
-        hma_period=MULTISTRAT_PARAMS['hma_period'],
-        vwap_std=MULTISTRAT_PARAMS['vwap_std'],
-        macd_fast_period=MULTISTRAT_PARAMS['macd_fast_period'],
-        macd_slow_period=MULTISTRAT_PARAMS['macd_slow_period'],
-        macd_signal_period=MULTISTRAT_PARAMS['macd_signal_period'],
-        mfi_period=MULTISTRAT_PARAMS['mfi_period'],
-        obv_ma_period=MULTISTRAT_PARAMS['obv_ma_period']
+    def strategy_func(d, **kwargs):
+        strategy.reset_state()
+        strategy.run_strategy(d)
+        return strategy.get_strategy_performance(d)['profit_factor']
+    
+    print("Running permutation test...\n")
+    orig, perms, better = permutation_test(strategy_func, data, n_permutations=n_permutations)
+    print(
+        f"\nOrig PF: {orig}\n"
+        f"Perm mean: {np.mean(perms)}\n"
+        f"Std: {np.std(perms)}\n"
+        f"Better than orig: {better:.2%}\n"
+    )
+    
+    # Plot results
+    plot_permutation_results(orig, perms, data)
+
+# Walk-forward permutation test
+def run_walk_forward_permutation_test(backtest_start, backtest_end, filename='data/symbol_data.csv', n_permutations=100):
+    # Fetch data for walk-forward period
+    client = Client(API_KEY, API_SECRET)
+
+    print("\nFetching data...\n")
+    data = fetch_and_store_data(client, SYMBOL, Client.KLINE_INTERVAL_1HOUR, backtest_start, filename, backtest_end)
+    print("Data fetched\n")
+
+    strategy = Optimize_parameters()
+    strategy.run_walk_forward_optimization(data)
+    original_performance = strategy.get_strategy_performance(data)['profit_factor']
+    perm_better_than_orig = 0
+    permuted_performances = []
+
+    print("Running walk-forward permutation test...\n")
+    for _ in tqdm(range(n_permutations)):
+        permuted_data = permute_returns_and_rebuild(data, random_state=None) # Use None to get a different random seed each time
+        permuted_data.index = data.index  # Keep original index if needed
+        permuted_data.columns = data.columns
+        strategy.reset_state()
+        strategy.run_walk_forward_optimization(permuted_data)
+        perf = strategy.get_strategy_performance(data)['profit_factor']
+        if perf > original_performance:
+            perm_better_than_orig += 1
+        permuted_performances.append(perf)
+    
+    better = perm_better_than_orig / n_permutations
+    print(
+        f"\nOrig PF: {original_performance}\n"
+        f"Perm mean: {np.mean(permuted_performances)}\n"
+        f"Std: {np.std(permuted_performances)}\n"
+        f"Better than orig: {better:.2%}\n"
     )
 
-    print("Strategies added\n")
+    # Plot results
+    plot_permutation_results(original_performance, permuted_performances, data)
 
-    # Run walk-forward optimization
-    print("Running walk-forward optimization...")
-    manager.run_walk_forward_optimization(data)
-    print("\nWalk-forward optimization done\n")
+# Methods for permutation testing
+def permute_returns_and_rebuild(data, random_state=None):
+    """Permute returns, reconstruct price series, keep first and last price the same."""
+    closes = data['close'].values
+    opens = data['open'].values
+
+    # Calculate log returns
+    log_returns = np.log(closes[1:] / closes[:-1])
+
+    # Permute the returns except the first and last
+    if len(log_returns) > 2:
+        middle_returns = log_returns[1:-1].copy()
+        rng = np.random.default_rng(random_state)
+        rng.shuffle(middle_returns)
+        permuted_returns = np.concatenate([[log_returns[0]], middle_returns, [log_returns[-1]]])
+    else:
+        permuted_returns = log_returns
+
+    # Rebuild close prices
+    permuted_closes = [closes[0]]
+    for r in permuted_returns:
+        permuted_closes.append(permuted_closes[-1] * np.exp(r))
+    permuted_closes = np.array(permuted_closes)
+
+    # Set open = previous close
+    permuted_opens = np.roll(permuted_closes, 1)
+    permuted_opens[0] = opens[0]
+
+    permuted_data = data.copy()
+    permuted_data['open'] = permuted_opens
+    permuted_data['close'] = permuted_closes
+
+    # Add random wicks for more realistic highs/lows
+    wick_upper_cap = np.random.uniform(0.0005, 0.02)
+    high_wick = permuted_data['close'] * (1 + np.random.uniform(0, wick_upper_cap, len(permuted_data)))
+    permuted_data['high'] = np.maximum(permuted_data['open'], permuted_data['close'])
+    permuted_data['high'] = np.maximum(permuted_data['high'], high_wick)
+    wick_upper_cap = np.random.uniform(0.0005, 0.02)
+    low_wick = permuted_data['close'] * (1 - np.random.uniform(0, wick_upper_cap, len(permuted_data)))
+    permuted_data['low'] = np.minimum(permuted_data['open'], permuted_data['close'])
+    permuted_data['low'] = np.minimum(permuted_data['low'], low_wick)
+
+    return permuted_data
+
+def plot_permutation_results(orig, perms, data):
+    """Plot the results of the permutation test."""
+    plt.figure(figsize=(8, 4))
+    plt.hist(perms, bins=30, alpha=0.7, label='Permuted')
+    plt.axvline(orig, color='red', linestyle='dashed', linewidth=2, label='Original')
+    plt.xlabel('Profit Factor')
+    plt.ylabel('Frequency')
+    plt.title('Permutation Test: Profit Factor')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('data/permutation_dist.png')
+
+    # Plot original vs one permuted price series
+    plt.figure(figsize=(12, 4))
+    plt.plot(data['close'].values, label='Original Close')
+    # Create one permuted series for visualization
+    permuted_data = permute_returns_and_rebuild(data, random_state=None)
+    plt.plot(permuted_data['close'].values, label='Permuted Close', alpha=0.7)
+    plt.xlabel('Index')
+    plt.ylabel('Close Price')
+    plt.title('Original vs Permuted Close Price')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('data/permutation_price.png')
 
 
 if __name__ == '__main__':
     # Choose optimization to run
-    optimization = 1   # 1: Optimize a particular strategy, 2: Find the best strategy, 3: Combine and run multiple strategies together
+    optimization = 4    # 1: Optimize a particular strategy, 2: Find the best strategy, 
+                        # 3: Combine and run multiple strategies together, 4: In-sample permutation test,
+                        # 5: Walk forward optimization
 
     # Choose mode for optimization 1
-    mode = 1   # 1: Run parameter optimization, 2: Print metrics and plot results 
+    mode = 2            # 1: Run parameter optimization, 2: Print metrics and plot results 
 
     # Choose how many trials to run for optimization 2
     trials = 5000
 
+    # Choose how many permutations to run for optimization 4
+    n_permutations = 1000
+
     # Choose which time period to run the optimization on
-    time_period = 5   # 1: 2021 bull market, 2: 2022 bear market, 3: 2023-2025 bull market, 4: None, use BACKTEST_START from config.py, 5: Walk-forward optimization
+    time_period = 1     # 1: 2016-2019, 2: 2020, 3: 2021, 4: 2022, 
+                        # 5: 2023, 6: 2024, 7: Custom period (set BACKTEST_START and BACKTEST_END in config.py)
 
     match time_period:
         case 1:
-            print("Running optimization on 2021 bull market data...")
-            backtest_start = "1 Nov, 2020"
-            backtest_end = "30 Nov, 2021"
-            filename = 'data/symbol_data_2021.csv'
+            print("Running optimization on 2016-2019 data...\n")
+            backtest_start = "1 Jan, 2016"
+            backtest_end = "31 Dec, 2019"
+            filename = 'data/symbol_data_2016_2019.csv'
         case 2:
-            print("Running optimization on 2022 bear market data...")
-            backtest_start = "1 Dec, 2021"
+            print("Running optimization on 2020 data...\n")
+            backtest_start = "1 Jan, 2020"
+            backtest_end = "31 Dec, 2020"
+            filename = 'data/symbol_data_2020.csv'
+        case 2:
+            print("Running optimization on 2021 data...\n")
+            backtest_start = "1 Jan, 2021"
+            backtest_end = "31 Dec, 2021"
+            filename = 'data/symbol_data_2021.csv'
+        case 3:
+            print("Running optimization on 2022 data...\n")
+            backtest_start = "1 Jan, 2022"
             backtest_end = "31 Dec, 2022"
             filename = 'data/symbol_data_2022.csv'
-        case 3:
-            print("Running optimization on 2023-2025 bull market data...")
-            backtest_start = "1 Jan, 2023"
-            backtest_end = "31 Dec, 2025"
-            filename = 'data/symbol_data_2023_2025.csv'
         case 4:
-            print("Running optimization on data from BACKTEST_START...")
-            backtest_start = BACKTEST_START
-            backtest_end = None
-            filename = 'data/symbol_data.csv'
+            print("Running optimization on 2023 data...\n")
+            backtest_start = "1 Jan, 2023"
+            backtest_end = "31 Dec, 2023"
+            filename = 'data/symbol_data_2023.csv'
         case 5:
-            print("Running optimization on walk-forward data...")
-            backtest_start = "6 months ago"
-            backtest_end = None
-            filename = 'data/symbol_data_walk_forward.csv'
+            print("Running optimization on 2024 data...\n")
+            backtest_start = "1 Jan, 2024"
+            backtest_end = "31 Dec, 2024"
+            filename = 'data/symbol_data_2024.csv'
+        case 6:
+            print("Running optimization on 2025 data...\n")
+            backtest_start = "1 Jan, 2025"
+            backtest_end = "31 Dec, 2025"
+            filename = 'data/symbol_data_2025.csv'
+        case 7:
+            print("Running optimization on data from BACKTEST_START to BACKTEST_END...\n")
+            backtest_start = BACKTEST_START
+            backtest_end = BACKTEST_END
+            filename = 'data/symbol_data_custom.csv'
 
     match optimization:
         case 1:
-            run_parameter_optimization_strategy(mode, backtest_start, backtest_end, filename)   # Optimize a particular strategys parameters
+            run_parameter_optimization(mode, backtest_start, backtest_end, filename)                     # Optimize a particular strategys parameters
         case 2:
-            automated_optimization(trials, backtest_start, backtest_end, filename)              # Find the best strategy
+            run_automated_optimization(trials, backtest_start, backtest_end, filename)                   # Find the best strategy
         case 3:
-            run_multistrategy_optimization(backtest_start, backtest_end, filename)              # Combine and run multiple strategies together
+            run_multistrategy_optimization(backtest_start, backtest_end, filename)                       # Combine and run multiple strategies together
         case 4:
-            run_walk_forward_optimization(backtest_start, backtest_end, filename)               # Walk forward optimization
+            run_in_sample_permutation_test(backtest_start, backtest_end, filename, n_permutations)       # In-sample permutation test
+        case 5:
+            run_walk_forward_permutation_test(backtest_start, backtest_end, filename, n_permutations)    # Walk forward optimization

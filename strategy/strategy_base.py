@@ -562,7 +562,7 @@ class Strategy_base:
         # Calculate profit factor
         gross_profits = sum([t['pnl'] for t in self.trades if t['pnl'] > 0]) or 0
         gross_losses = abs(sum([t['pnl'] for t in self.trades if t['pnl'] < 0])) or 1
-        profit_factor = gross_profits / gross_losses
+        profit_factor = float(gross_profits / gross_losses)
         
         # Calculate Sharpe Ratio (assuming daily returns)
         daily_returns = pd.Series(self.pnl).fillna(0)

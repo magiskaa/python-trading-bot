@@ -314,27 +314,3 @@ class Multistrategy_manager(Optimize_multistrategy):
                 take_profits[i] = take_profits[i-1]
 
         return df
-
-    def run_walk_forward_optimization(self, df: pd.DataFrame):
-        """Run walk-forward optimization on the strategies"""
-        # Split data into training and testing sets
-        train_size = int(len(df) * 0.6)
-        train_df = df[:train_size]
-        test_df = df[train_size:]
-
-        # Run optimization on training set
-        for strategy in self.strategies:
-            strategy.optimize_step_by_step(train_df, MULTISTRAT_PARAMS)
-
-        print("\nOptimization complete. Starting walk-forward testing...")
-
-        # Run strategies on test set
-        results_df = self.run_strategies(test_df)
-
-        print("\nWalk-forward testing complete. Calculating metrics...")
-
-        # Calculate metrics and plot results
-        self.calculate_metrics()
-        self.plot_results(results_df)
-
-        return results_df
